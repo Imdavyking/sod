@@ -39,6 +39,8 @@ async function main() {
     chainId: Number((await ethers.provider.getNetwork()).chainId),
     token: tokenAddress,
     sod: sodAddress,
+    zerodevRpc:
+      "https://rpc.zerodev.app/api/v3/d2ad3982-450c-448c-b21f-4f6921c40367/chain/421614",
   };
 
   // ---- Phase 2 ----
