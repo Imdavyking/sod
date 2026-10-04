@@ -64,6 +64,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"public" | "private">("public");
 
+  
   const refresh = useCallback(async () => {
     if (!isConfigured) return;
     const count = (await publicClient.readContract({
@@ -128,9 +129,12 @@ export default function App() {
     }
   }, [account]);
 
+ 
+
   useEffect(() => {
     refresh().catch((e) => setStatus({ kind: "error", text: errMsg(e) }));
   }, [refresh]);
+
 
   async function run<T>(label: string, fn: () => Promise<T>) {
     setBusy(true);
@@ -146,6 +150,9 @@ export default function App() {
       setBusy(false);
     }
   }
+
+    
+
 
   async function send(
     args: Parameters<WalletClient["writeContract"]>[0] extends infer A
@@ -270,127 +277,129 @@ export default function App() {
       } as never),
     );
 
-  return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Sod</h1>
-          <p className="text-sm text-slate-400">
-            Trustless crowdfunding on Arbitrum · testnet prototype
-          </p>
-        </div>
-        {account ? (
-          <div className="text-right text-sm">
-            <div className="font-mono text-slate-300">{shortAddr(account)}</div>
-            <div className="text-slate-500">{fmt(balance)} mUSDC</div>
-            <button
-              onClick={mint}
-              disabled={busy}
-              className="mt-1 text-xs text-emerald-400 hover:underline disabled:opacity-50"
-            >
-              Get test USDC
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={connect}
-            disabled={busy}
-            className="rounded-lg bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
-          >
-            Connect wallet
-          </button>
-        )}
-      </header>
 
-      <div className="mb-4 flex gap-2 text-sm">
-        {(["public", "private"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`rounded-full px-4 py-1.5 ${
-              mode === m
-                ? "bg-slate-100 text-slate-950"
-                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-            }`}
-          >
-            {m === "public" ? "Public" : "Private (encrypted amounts)"}
-          </button>
-        ))}
-      </div>
 
-      {mode === "public" && (
-        <div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
-          <strong>Public mode is fully transparent.</strong> Donor addresses and
-          amounts are visible on-chain. Sod does not make donors anonymous. Not
-          audited. Testnet only.
-        </div>
-      )}
+  // return (
+  //   <div className="mx-auto max-w-3xl px-4 py-8">
+  //     <header className="mb-6 flex items-center justify-between">
+  //       <div>
+  //         <h1 className="text-3xl font-bold tracking-tight">Sod</h1>
+  //         <p className="text-sm text-slate-400">
+  //           Trustless crowdfunding on Arbitrum · testnet prototype
+  //         </p>
+  //       </div>
+  //       {account ? (
+  //         <div className="text-right text-sm">
+  //           <div className="font-mono text-slate-300">{shortAddr(account)}</div>
+  //           <div className="text-slate-500">{fmt(balance)} mUSDC</div>
+  //           <button
+  //             onClick={mint}
+  //             disabled={busy}
+  //             className="mt-1 text-xs text-emerald-400 hover:underline disabled:opacity-50"
+  //           >
+  //             Get test USDC
+  //           </button>
+  //         </div>
+  //       ) : (
+  //         <button
+  //           onClick={connect}
+  //           disabled={busy}
+  //           className="rounded-lg bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+  //         >
+  //           Connect wallet
+  //         </button>
+  //       )}
+  //     </header>
 
-      {mode === "public" && !isConfigured && (
-        <div className="mb-6 rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm text-slate-300">
-          No deployment configured. Run{" "}
-          <code className="text-emerald-400">
-            npx hardhat run scripts/deploy.ts --network arbitrumSepolia
-          </code>{" "}
-          from the repo root, or set{" "}
-          <code className="text-emerald-400">VITE_SOD_ADDRESS</code> and{" "}
-          <code className="text-emerald-400">VITE_TOKEN_ADDRESS</code>.
-        </div>
-      )}
+  //     <div className="mb-4 flex gap-2 text-sm">
+  //       {(["public", "private"] as const).map((m) => (
+  //         <button
+  //           key={m}
+  //           onClick={() => setMode(m)}
+  //           className={`rounded-full px-4 py-1.5 ${
+  //             mode === m
+  //               ? "bg-slate-100 text-slate-950"
+  //               : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+  //           }`}
+  //         >
+  //           {m === "public" ? "Public" : "Private (encrypted amounts)"}
+  //         </button>
+  //       ))}
+  //     </div>
 
-      {status && (
-        <div
-          className={`mb-6 rounded-lg p-3 text-sm ${
-            status.kind === "error"
-              ? "bg-red-500/10 text-red-300"
-              : status.kind === "ok"
-              ? "bg-emerald-500/10 text-emerald-300"
-              : "bg-slate-800 text-slate-300"
-          }`}
-        >
-          {status.text}
-        </div>
-      )}
+  //     {mode === "public" && (
+  //       <div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+  //         <strong>Public mode is fully transparent.</strong> Donor addresses and
+  //         amounts are visible on-chain. Sod does not make donors anonymous. Not
+  //         audited. Testnet only.
+  //       </div>
+  //     )}
 
-      {mode === "private" && (
-        <PrivatePanel
-          wallet={wallet}
-          account={account}
-          busy={busy}
-          run={run}
-          send={(a) => send(a as never)}
-        />
-      )}
+  //     {mode === "public" && !isConfigured && (
+  //       <div className="mb-6 rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm text-slate-300">
+  //         No deployment configured. Run{" "}
+  //         <code className="text-emerald-400">
+  //           npx hardhat run scripts/deploy.ts --network arbitrumSepolia
+  //         </code>{" "}
+  //         from the repo root, or set{" "}
+  //         <code className="text-emerald-400">VITE_SOD_ADDRESS</code> and{" "}
+  //         <code className="text-emerald-400">VITE_TOKEN_ADDRESS</code>.
+  //       </div>
+  //     )}
 
-      {mode === "public" && account && isConfigured && (
-        <CreateForm onCreate={create} busy={busy} />
-      )}
+  //     {status && (
+  //       <div
+  //         className={`mb-6 rounded-lg p-3 text-sm ${
+  //           status.kind === "error"
+  //             ? "bg-red-500/10 text-red-300"
+  //             : status.kind === "ok"
+  //             ? "bg-emerald-500/10 text-emerald-300"
+  //             : "bg-slate-800 text-slate-300"
+  //         }`}
+  //       >
+  //         {status.text}
+  //       </div>
+  //     )}
 
-      {mode === "public" && (
-        <section className="mt-8 space-y-4">
-          <h2 className="text-lg font-semibold">Campaigns</h2>
-          {campaigns.length === 0 && (
-            <p className="text-sm text-slate-500">No campaigns yet.</p>
-          )}
-          {campaigns.map((c) => (
-            <CampaignCard
-              key={c.id.toString()}
-              c={c}
-              account={account}
-              busy={busy}
-              receipts={receipts.filter(
-                (r) => r.campaignId === c.id.toString(),
-              )}
-              refunded={refunded}
-              onDonate={donate}
-              onRefund={refund}
-              onWithdraw={withdraw}
-            />
-          ))}
-        </section>
-      )}
-    </div>
-  );
+  //     {mode === "private" && (
+  //       <PrivatePanel
+  //         wallet={wallet}
+  //         account={account}
+  //         busy={busy}
+  //         run={run}
+  //         send={(a) => send(a as never)}
+  //       />
+  //     )}
+
+  //     {mode === "public" && account && isConfigured && (
+  //       <CreateForm onCreate={create} busy={busy} />
+  //     )}
+
+  //     {mode === "public" && (
+  //       <section className="mt-8 space-y-4">
+  //         <h2 className="text-lg font-semibold">Campaigns</h2>
+  //         {campaigns.length === 0 && (
+  //           <p className="text-sm text-slate-500">No campaigns yet.</p>
+  //         )}
+  //         {campaigns.map((c) => (
+  //           <CampaignCard
+  //             key={c.id.toString()}
+  //             c={c}
+  //             account={account}
+  //             busy={busy}
+  //             receipts={receipts.filter(
+  //               (r) => r.campaignId === c.id.toString(),
+  //             )}
+  //             refunded={refunded}
+  //             onDonate={donate}
+  //             onRefund={refund}
+  //             onWithdraw={withdraw}
+  //           />
+  //         ))}
+  //       </section>
+  //     )}
+  //   </div>
+  // );
 }
 
 function CreateForm({
