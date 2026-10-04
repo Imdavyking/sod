@@ -1,8 +1,8 @@
 {
   "network": "arbitrumSepolia",
   "chainId": 421614,
-  "token": "0xD3Ee187033C70E922b8f3c5638D9746daB05950e",
-  "sod": "0xbD98bD21330F35EE4701d54EF0bA82900e758234",
-  "confidentialToken": "0x99121043c769b9386F6AB528563C9b4E3036fE42",
-  "sodConfidential": "0xaD76b8Dcb3E71F18fA1510205f793cb6937201e1"
+  "token": "0x67Eb400eA284827eD959C29dF43B4537c6fCbC09",
+  "sod": "0x1125158B38a72fCA1092a615F601e38b1954a65b",
+  "confidentialToken": "0xb48C7e44B9dcb8D045D7465d5e336aaC54776401",
+  "sodConfidential": "0xD8F9fc610137fEaf2aEf927A32322a7Fd75C97d1"
 }
