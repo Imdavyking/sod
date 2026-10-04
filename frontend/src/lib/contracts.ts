@@ -12,7 +12,7 @@ export const TOKEN_ADDRESS = (import.meta.env.VITE_TOKEN_ADDRESS ||
 export const SOD_CONF_ADDRESS = (import.meta.env.VITE_SOD_CONF_ADDRESS ||
   deployment.sodConfidential ||
   ZERO) as Address;
-export const ECUSDC_ADDRESS = (import.meta.env.VITE_ECUSDC_ADDRESS ||
+export const ECUSDG_ADDRESS = (import.meta.env.VITE_ECUSDG_ADDRESS ||
   deployment.confidentialToken ||
   ZERO) as Address;
 export const ZERODEV_RPC = (import.meta.env.VITE_ZERODEV_RPC || "") as string;
@@ -42,7 +42,7 @@ export const tokenAbi = parseAbi([
 ]);
 
 export const isPrivateConfigured =
-  SOD_CONF_ADDRESS !== ZERO && ECUSDC_ADDRESS !== ZERO && isConfigured;
+  SOD_CONF_ADDRESS !== ZERO && ECUSDG_ADDRESS !== ZERO && isConfigured;
 export const isGaslessConfigured =
   isPrivateConfigured && ZERODEV_RPC.length > 0;
 
@@ -59,7 +59,7 @@ export const sodConfAbi = parseAbi([
   "event Donated(uint256 indexed campaignId, uint256 indexed donationIndex, address indexed donor, bytes32 commitment)",
 ]);
 
-export const ecusdcAbi = parseAbi([
+export const ecusdgAbi = parseAbi([
   "function shield(address to, uint256 amount) returns (bytes32)",
   "function setOperator(address operator, uint48 until)",
   "function isOperator(address holder, address operator) view returns (bool)",

@@ -11,12 +11,12 @@ import {
   type WalletClient,
 } from "viem";
 import {
-  ECUSDC_ADDRESS,
+  ECUSDG_ADDRESS,
   SOD_CONF_ADDRESS,
   TOKEN_ADDRESS,
   TOKEN_DECIMALS,
   chain,
-  ecusdcAbi,
+  ecusdgAbi,
   isGaslessConfigured,
   isPrivateConfigured,
   sodConfAbi,
@@ -154,19 +154,19 @@ export default function PrivatePanel(props: {
 
   // ---------- Phase 2 actions ----------
 
-  /** Public wrap of USDC into eUSDC. The wrapped amount is visible on-chain. */
+  /** Public wrap of USDG into eUSDG. The wrapped amount is visible on-chain. */
   const shield = (to: Address, amountStr: string) =>
-    act("Shielding USDC", async () => {
+    act("Shielding USDG", async () => {
       const amount = parseUnits(amountStr, TOKEN_DECIMALS);
       await send({
         address: TOKEN_ADDRESS,
         abi: tokenAbi,
         functionName: "approve",
-        args: [ECUSDC_ADDRESS, amount],
+        args: [ECUSDG_ADDRESS, amount],
       });
       await send({
-        address: ECUSDC_ADDRESS,
-        abi: ecusdcAbi,
+        address: ECUSDG_ADDRESS,
+        abi: ecusdgAbi,
         functionName: "shield",
         args: [to, amount],
       });
@@ -174,15 +174,15 @@ export default function PrivatePanel(props: {
 
   const ensureOperator = async () => {
     const ok = (await publicClient.readContract({
-      address: ECUSDC_ADDRESS,
-      abi: ecusdcAbi,
+      address: ECUSDG_ADDRESS,
+      abi: ecusdgAbi,
       functionName: "isOperator",
       args: [account!, SOD_CONF_ADDRESS],
     })) as boolean;
     if (!ok) {
       await send({
-        address: ECUSDC_ADDRESS,
-        abi: ecusdcAbi,
+        address: ECUSDG_ADDRESS,
+        abi: ecusdgAbi,
         functionName: "setOperator",
         args: [SOD_CONF_ADDRESS, Number(nowSec()) + 30 * DAY],
       });
@@ -282,11 +282,11 @@ export default function PrivatePanel(props: {
         address: TOKEN_ADDRESS,
         abi: tokenAbi,
         functionName: "approve",
-        args: [ECUSDC_ADDRESS, wrap],
+        args: [ECUSDG_ADDRESS, wrap],
       });
       await send({
-        address: ECUSDC_ADDRESS,
-        abi: ecusdcAbi,
+        address: ECUSDG_ADDRESS,
+        abi: ecusdgAbi,
         functionName: "shield",
         args: [kernel.address, wrap],
       });
@@ -301,9 +301,9 @@ export default function PrivatePanel(props: {
       //    because a smart account cannot sign the EIP-712 permits CoFHE uses for decryption.
       const hash = await sendSponsored(kernel, [
         {
-          to: ECUSDC_ADDRESS,
+          to: ECUSDG_ADDRESS,
           data: encodeFunctionData({
-            abi: ecusdcAbi,
+            abi: ecusdgAbi,
             functionName: "setOperator",
             args: [SOD_CONF_ADDRESS, Number(nowSec()) + 30 * DAY],
           }),
@@ -369,19 +369,19 @@ export default function PrivatePanel(props: {
       }),
     );
 
-  /** Convert confidential tokens back to plain USDC: burn, decrypt the claim, then claim. */
+  /** Convert confidential tokens back to plain USDG: burn, decrypt the claim, then claim. */
   const unshield = () =>
-    act("Unshielding to USDC", async () => {
+    act("Unshielding to USDG", async () => {
       const amount = parseUnits(unshieldAmt, TOKEN_DECIMALS);
       await send({
-        address: ECUSDC_ADDRESS,
-        abi: ecusdcAbi,
+        address: ECUSDG_ADDRESS,
+        abi: ecusdgAbi,
         functionName: "unshield",
         args: [account!, account!, amount],
       });
       const claims = (await publicClient.readContract({
-        address: ECUSDC_ADDRESS,
-        abi: ecusdcAbi,
+        address: ECUSDG_ADDRESS,
+        abi: ecusdgAbi,
         functionName: "getUserClaims",
         args: [account!],
       })) as readonly { id: Hex; ctHash: Hex; claimed: boolean }[];
@@ -392,8 +392,8 @@ export default function PrivatePanel(props: {
         await loadCofhe()
       ).decryptForClaim(await cofhe(), claim.ctHash);
       await send({
-        address: ECUSDC_ADDRESS,
-        abi: ecusdcAbi,
+        address: ECUSDG_ADDRESS,
+        abi: ecusdgAbi,
         functionName: "claimUnshielded",
         args: [claim.id, decryptedValue, signature],
       });
@@ -428,7 +428,7 @@ export default function PrivatePanel(props: {
       } else {
         value = await (await loadCofhe()).decryptUint64(await cofhe(), handle);
       }
-      setRevealed((p) => ({ ...p, [key]: `${fmt(value)} mUSDC` }));
+      setRevealed((p) => ({ ...p, [key]: `${fmt(value)} mUSDG` }));
     });
 
   const revealBalance = () =>
@@ -437,8 +437,8 @@ export default function PrivatePanel(props: {
       "Decrypting your balance",
       async () =>
         (await publicClient.readContract({
-          address: ECUSDC_ADDRESS,
-          abi: ecusdcAbi,
+          address: ECUSDG_ADDRESS,
+          abi: ecusdgAbi,
           functionName: "confidentialBalanceOf",
           args: [account!],
         })) as Hex,
@@ -497,7 +497,7 @@ export default function PrivatePanel(props: {
         (it writes <code className="text-emerald-400">confidentialToken</code>{" "}
         and <code className="text-emerald-400">sodConfidential</code>) or set{" "}
         <code className="text-emerald-400">VITE_SOD_CONF_ADDRESS</code> and{" "}
-        <code className="text-emerald-400">VITE_ECUSDC_ADDRESS</code>.
+        <code className="text-emerald-400">VITE_ECUSDG_ADDRESS</code>.
       </div>
     );
   }
@@ -513,7 +513,7 @@ export default function PrivatePanel(props: {
       <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-3 text-sm text-sky-200">
         <strong>Private mode hides amounts, not people.</strong> Donation
         amounts and the running total are encrypted. Donor addresses, the goal,
-        the deadline and refund events stay public. Wrapping USDC into eUSDC is
+        the deadline and refund events stay public. Wrapping USDG into eUSDG is
         public, so wrap more than you donate.
       </div>
 
@@ -525,7 +525,7 @@ export default function PrivatePanel(props: {
 
       {account && (
         <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
-          <h2 className="font-semibold">Your confidential balance (eUSDC)</h2>
+          <h2 className="font-semibold">Your confidential balance (eUSDG)</h2>
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <button
               disabled={busy}
@@ -541,7 +541,7 @@ export default function PrivatePanel(props: {
           <div className="flex flex-wrap gap-2">
             <input
               className="w-32 rounded-md bg-slate-800 px-3 py-2 text-sm"
-              placeholder="Wrap USDC"
+              placeholder="Wrap USDG"
               inputMode="decimal"
               value={shieldAmt}
               onChange={(e) => setShieldAmt(e.target.value)}
@@ -555,7 +555,7 @@ export default function PrivatePanel(props: {
             </button>
             <input
               className="w-32 rounded-md bg-slate-800 px-3 py-2 text-sm"
-              placeholder="Unwrap eUSDC"
+              placeholder="Unwrap eUSDG"
               inputMode="decimal"
               value={unshieldAmt}
               onChange={(e) => setUnshieldAmt(e.target.value)}
@@ -587,7 +587,7 @@ export default function PrivatePanel(props: {
           <div className="flex flex-wrap gap-3">
             <input
               className="w-40 rounded-md bg-slate-800 px-3 py-2 text-sm"
-              placeholder="Goal (mUSDC)"
+              placeholder="Goal (mUSDG)"
               inputMode="decimal"
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
@@ -688,7 +688,7 @@ function PrivateCard(props: {
         </span>
       </div>
       <div className="mb-1 text-sm text-slate-300">
-        Goal {fmt(c.goal)} mUSDC · raised{" "}
+        Goal {fmt(c.goal)} mUSDG · raised{" "}
         <span className="text-slate-400">
           {revealed[`t${c.id}`] ?? "🔒 encrypted"}
         </span>

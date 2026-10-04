@@ -14,7 +14,7 @@ import {CampaignInfo} from "./CampaignInfo.sol";
 ///         donations were refunded stay public. See the README privacy table.
 ///
 /// @dev Design notes
-///  - Funds are a confidential FHERC20 token (eUSDC). Donors must `setOperator(this, until)` on the token.
+///  - Funds are a confidential FHERC20 token (eUSDG). Donors must `setOperator(this, until)` on the token.
 ///  - The amount recorded is what the token actually moved, not what was requested. A donor who asks
 ///    for more than they hold silently moves 0 (FHERC20 zero-replacement), and 0 is recorded.
 ///  - The goal check is `FHE.gte(total, goal)`, an encrypted boolean. Nothing is decrypted on-chain:
