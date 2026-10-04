@@ -6,7 +6,6 @@ Sod is a GoFundMe-style platform where a smart contract, not a company, enforces
 
 Campaigns are funded in **USDG** (Global Dollar, issued by Paxos).
 
-> **Status: hackathon project for Arbitrum Open House Singapore (Online Buildathon).**
 > Testnet only, not audited. Read [Privacy: what is and isn’t hidden](#privacy-what-is-and-isnt-hidden) before trusting Sod with anything sensitive.
 
 ---
