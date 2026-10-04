@@ -298,14 +298,15 @@ export default function App() {
         {account ? (
           <div className="text-right text-sm">
             <div className="font-mono text-slate-300">{shortAddr(account)}</div>
-            <div className="text-slate-500">{fmt(balance)} mUSDG</div>
-            <button
-              onClick={mint}
-              disabled={busy}
+            <div className="text-slate-500">{fmt(balance)} USDG</div>
+
+            <a
+              href="https://faucet.paxos.com/"
+             
               className="mt-1 text-xs text-emerald-400 hover:underline disabled:opacity-50"
             >
               Get test USDG
-            </button>
+            </a>
           </div>
         ) : (
           <button
@@ -437,7 +438,7 @@ function CreateForm({
       <div className="flex flex-wrap gap-3">
         <input
           className="input w-40 rounded-md bg-slate-800 px-3 py-2 text-sm"
-          placeholder="Goal (mUSDG)"
+          placeholder="Goal (USDG)"
           inputMode="decimal"
           value={goal}
           onChange={(e) => setGoal(e.target.value)}
@@ -514,7 +515,7 @@ function CampaignCard(props: {
       </div>
       <div className="mb-3 flex justify-between text-sm text-slate-400">
         <span>
-          {fmt(c.total)} / {fmt(c.goal)} mUSDG
+          {fmt(c.total)} / {fmt(c.goal)} USDG
         </span>
         <span>
           {ended ? "Ended" : "Ends"}{" "}
@@ -569,7 +570,7 @@ function CampaignCard(props: {
           onClick={() => props.onWithdraw(c)}
           className="mt-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-40"
         >
-          Withdraw {fmt(c.total)} mUSDG
+          Withdraw {fmt(c.total)} USDG
         </button>
       )}
 
@@ -588,7 +589,7 @@ function CampaignCard(props: {
                   className="flex items-center justify-between text-sm"
                 >
                   <span className="text-slate-300">
-                    {fmt(BigInt(r.amount))} mUSDG{" "}
+                    {fmt(BigInt(r.amount))} USDG{" "}
                     <span className="text-xs text-slate-500">
                       {pending ? "(unconfirmed)" : done ? "(refunded)" : ""}
                     </span>

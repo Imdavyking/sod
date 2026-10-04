@@ -1,0 +1,10 @@
+{
+  "campaignId": "3",
+  "donationIndex": "0",
+  "amount": "11000000",
+  "secret": "0x085045019e712c824ab85716964dced2821297cec91149a02737d7246db4aea3",
+  "refundTo": "0xc47A14F94f2ddEB60afc9d87C8dAf9a1aB2B70Bc",
+  "createdAt": 1791132908401,
+  "mode": "private",
+  "txHash": "0xcdde77f3393a8e012e98cf07c14ead630d0ae603df291d58fada9af0b5bc184b"
+}

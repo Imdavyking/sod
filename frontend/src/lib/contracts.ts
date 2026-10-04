@@ -15,7 +15,9 @@ export const SOD_CONF_ADDRESS = (import.meta.env.VITE_SOD_CONF_ADDRESS ||
 export const ECUSDG_ADDRESS = (import.meta.env.VITE_ECUSDG_ADDRESS ||
   deployment.confidentialToken ||
   ZERO) as Address;
-export const ZERODEV_RPC = (import.meta.env.VITE_ZERODEV_RPC || "") as string;
+export const ZERODEV_RPC = (import.meta.env.VITE_ZERODEV_RPC ||
+  deployment.zerodevRpc ||
+  "") as string;
 export const TOKEN_DECIMALS = 6;
 
 export const isConfigured =

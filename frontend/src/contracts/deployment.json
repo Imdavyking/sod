@@ -1,8 +1,9 @@
 {
   "network": "arbitrumSepolia",
   "chainId": 421614,
-  "token": "0x67Eb400eA284827eD959C29dF43B4537c6fCbC09",
-  "sod": "0x1125158B38a72fCA1092a615F601e38b1954a65b",
-  "confidentialToken": "0xb48C7e44B9dcb8D045D7465d5e336aaC54776401",
-  "sodConfidential": "0xD8F9fc610137fEaf2aEf927A32322a7Fd75C97d1"
+  "token": "0xFFC95faa3d63Cde504a05B567C600B78C0b41892",
+  "sod": "0x99885Ff016a9988Bc13545727EEE803fe5701711",
+  "confidentialToken": "0x17cd3014c9364e93E9BfAccBe4fe1bf9dF7C2467",
+  "sodConfidential": "0x91190c08c2F8f4A596BF3Ef5d22E4521EE021346",
+  "zerodevRpc": "https://rpc.zerodev.app/api/v3/d2ad3982-450c-448c-b21f-4f6921c40367/chain/421614"
 }

@@ -428,7 +428,7 @@ export default function PrivatePanel(props: {
       } else {
         value = await (await loadCofhe()).decryptUint64(await cofhe(), handle);
       }
-      setRevealed((p) => ({ ...p, [key]: `${fmt(value)} mUSDG` }));
+      setRevealed((p) => ({ ...p, [key]: `${fmt(value)} USDG` }));
     });
 
   const revealBalance = () =>
@@ -587,7 +587,7 @@ export default function PrivatePanel(props: {
           <div className="flex flex-wrap gap-3">
             <input
               className="w-40 rounded-md bg-slate-800 px-3 py-2 text-sm"
-              placeholder="Goal (mUSDG)"
+              placeholder="Goal (USDG)"
               inputMode="decimal"
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
@@ -688,7 +688,7 @@ function PrivateCard(props: {
         </span>
       </div>
       <div className="mb-1 text-sm text-slate-300">
-        Goal {fmt(c.goal)} mUSDG · raised{" "}
+        Goal {fmt(c.goal)} USDG · raised{" "}
         <span className="text-slate-400">
           {revealed[`t${c.id}`] ?? "🔒 encrypted"}
         </span>
