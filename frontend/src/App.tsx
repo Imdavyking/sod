@@ -17,8 +17,14 @@ import {
   sodAbi,
   tokenAbi,
 } from "./lib/contracts";
-import { useAccount, useConnect, useDisconnect, useWalletClient } from "wagmi";
-import { ConnectWallet } from "@zerodev/wallet-react-ui";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useSwitchChain,
+  useWalletClient,
+} from "wagmi";
+import { ConnectWallet, SignUp } from "@zerodev/wallet-react-ui";
 import { publicClient, shortAddr } from "./lib/wallet";
 import { ZERODEV_PROJECT_ID } from "./lib/wagmi";
 import PrivatePanel from "./PrivatePanel";
@@ -63,7 +69,8 @@ function errMsg(e: unknown) {
 
 export default function App() {
   // Auth + signing now come from the ZeroDev embedded wallet (Google / passkey / email) via wagmi.
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
+  const { switchChain } = useSwitchChain();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { data: walletClient } = useWalletClient();
@@ -198,6 +205,11 @@ export default function App() {
   useEffect(() => {
     if (isConnected) setAuthOpen(false);
   }, [isConnected]);
+
+  // An external wallet (MetaMask etc.) may connect on another network. Move it to ours.
+  useEffect(() => {
+    if (isConnected && chainId !== chain.id) switchChain({ chainId: chain.id });
+  }, [isConnected, chainId, switchChain]);
 
   const mint = () =>
     run("Minting 1,000 test USDG", () =>
@@ -346,7 +358,21 @@ export default function App() {
 
       {authOpen && !account && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-          <ConnectWallet size="md" onClose={() => setAuthOpen(false)} />
+          <ConnectWallet
+            size="md"
+            onClose={() => setAuthOpen(false)}
+            renderSignUp={() => (
+              <SignUp>
+                <SignUp.Passkey />
+                <SignUp.Divider />
+                <SignUp.Google />
+                <SignUp.Email />
+                <SignUp.Divider label="or use a wallet" />
+                <SignUp.Wallet walletId="metamask" />
+                <SignUp.InstalledWallets />
+              </SignUp>
+            )}
+          />
         </div>
       )}
 

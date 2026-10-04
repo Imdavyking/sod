@@ -12,14 +12,13 @@ export const wagmiConfig = createConfig({
     zeroDevWallet({
       projectId: ZERODEV_PROJECT_ID,
       chains: [chain],
-      // ZeroDev is used only for onboarding: sign in with Google, a passkey or email and get an
-      // embedded wallet. "EOA" keeps it a plain key-backed account, which is what CoFHE needs:
-      // decryption permits are EIP-712 signatures that must verify against the connected address.
+      // Onboarding: sign in with Google, a passkey or email and get an embedded wallet.
+      // "EOA" keeps it a plain key-backed account, which is what CoFHE needs: decryption
+      // permits are EIP-712 signatures that must verify against the connected address.
       mode: "EOA",
     }),
   ],
   transports: { [chain.id]: http() },
-  // No external-wallet connectors are configured, so skip EIP-6963 discovery. A broken
-  // extension can otherwise stall startup (per the ZeroDev install docs).
-  multiInjectedProviderDiscovery: false,
+  // EIP-6963 discovery stays on (the default) so installed wallets such as MetaMask show up in the
+  // sign-in widget as external-wallet options.
 });

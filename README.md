@@ -2,7 +2,7 @@
 
 **Trustless, private crowdfunding on Arbitrum.**
 
-Sod is a GoFundMe-style platform where a smart contract, not a company, enforces the goal, the deadline, and refunds. Donors can take their money back before the deadline, and creators can only withdraw if the goal is met. Donation amounts are encrypted with Fhenix FHE, and donors sign in with Google, a passkey or an email through ZeroDev, so no wallet extension is needed.
+Sod is a GoFundMe-style platform where a smart contract, not a company, enforces the goal, the deadline, and refunds. Donors can take their money back before the deadline, and creators can only withdraw if the goal is met. Donation amounts are encrypted with Fhenix FHE, and donors sign in with Google, a passkey or an email through ZeroDev, so no wallet extension is needed. MetaMask and other wallets also work.
 
 Campaigns are funded in **USDG** (Global Dollar, issued by Paxos).
 
@@ -23,7 +23,7 @@ Sod moves the rules into a contract nobody can override, then hides the numbers.
 | Donor has no way out              | Refund before the deadline, plus automatic refunds if the goal fails    |
 | Refund can be hijacked            | Refund is bound to a secret and a destination address (front-run proof) |
 | Amounts are public                | Encrypted amounts and totals with Fhenix FHE                            |
-| Crypto wallets scare off donors   | Sign in with Google, a passkey or an email (ZeroDev embedded wallet)    |
+| Crypto wallets scare off donors   | Sign in with Google, a passkey or an email, or bring your own wallet    |
 
 ---
 
@@ -69,8 +69,8 @@ Because `refundTo` is inside the hash, someone who copies the secret from the me
 
 ### Sign-in (ZeroDev)
 
-- ZeroDev is used only for onboarding. The `<ConnectWallet />` widget from `@zerodev/wallet-react-ui` lets a donor sign in with Google, a passkey or an email and gives them an embedded wallet.
-- The wallet runs in `EOA` mode, so the signed-in account is a plain key-backed address. It signs every transaction and the EIP-712 permits (ACPs) that Fhenix uses for decryption, which need to verify against the connected address.
+- ZeroDev is used for onboarding. The `<ConnectWallet />` widget from `@zerodev/wallet-react-ui` lets a donor sign in with Google, a passkey or an email and gives them an embedded wallet. The same widget also lists MetaMask and any other installed wallet (found through EIP-6963), so donors who already have one can use it.
+- The embedded wallet runs in `EOA` mode, so the signed-in account is a plain key-backed address, the same as an external wallet. It signs every transaction and the EIP-712 permits (ACPs) that Fhenix uses for decryption, which need to verify against the connected address.
 - Donors pay their own gas in Arbitrum Sepolia ETH.
 - The app talks to the wallet through wagmi, so the usual hooks (`useAccount`, `useWalletClient`) work.
 
@@ -154,7 +154,7 @@ Package names and APIs for Fhenix and ZeroDev change often. Check their current 
 | ---------------- | ---------------------------------------------------------------------------------------------------- |
 | **OpenZeppelin** | `SafeERC20`, `ReentrancyGuard`, `Pausable`, and `Ownable` or `AccessControl` for the emergency pause |
 | **Fhenix**       | Encrypted donation amounts, encrypted totals, goal check                                             |
-| **ZeroDev**      | Seamless onboarding: sign in with Google, a passkey or an email, no wallet extension                 |
+| **ZeroDev**      | Seamless onboarding: Google, passkey or email sign-in, with MetaMask and other wallets as an option  |
 | **Paxos / Global Dollar** | USDG as the campaign currency                                                               |
 
 ---
