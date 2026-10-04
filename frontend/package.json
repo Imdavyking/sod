@@ -10,12 +10,21 @@
   },
   "dependencies": {
     "@cofhe/sdk": "^0.7.1",
+    "@tanstack/react-query": "^5.104.1",
+    "@wagmi/core": "^3.6.5",
     "@zerodev/ecdsa-validator": "^5.4.9",
+    "@zerodev/react-ui": "^0.0.9",
     "@zerodev/sdk": "^5.5.10",
+    "@zerodev/wallet-core": "^0.0.5",
+    "@zerodev/wallet-react": "^0.0.8",
+    "@zerodev/wallet-react-ui": "^0.0.13",
     "events": "^3.3.0",
+    "json-canonicalize": "^3.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "viem": "^2.57.2"
+    "viem": "^2.57.2",
+    "wagmi": "^3.7.7",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

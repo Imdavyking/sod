@@ -1,5 +1,5 @@
-import { createPublicClient, createWalletClient, custom, http, type Address, type EIP1193Provider } from "viem";
-import { chain } from "./contracts";
+import { type Address, type EIP1193Provider } from "viem";
+// import { chain } from "./contracts";
 
 declare global {
   interface Window {
@@ -7,20 +7,29 @@ declare global {
   }
 }
 
-export const publicClient = createPublicClient({ chain, transport: http() });
+// export const publicClient = createPublicClient({ chain, transport: http() });
 
-export async function connectWallet() {
-  if (!window.ethereum) throw new Error("No injected wallet found. Install MetaMask or similar.");
-  const wallet = createWalletClient({ chain, transport: custom(window.ethereum) });
-  const [account] = await wallet.requestAddresses();
-  try {
-    await wallet.switchChain({ id: chain.id });
-  } catch {
-    await wallet.addChain({ chain });
-    await wallet.switchChain({ id: chain.id });
-  }
-  return { wallet, account: account as Address };
-}
+// export async function connectWallet() {
+//   if (!window.ethereum) throw new Error("No injected wallet found. Install MetaMask or similar.");
+//   const wallet = createWalletClient({ chain, transport: custom(window.ethereum) });
+//   const [account] = await wallet.requestAddresses();
+//   try {
+//     await wallet.switchChain({ id: chain.id });
+//   } catch {
+//     await wallet.addChain({ chain });
+//     await wallet.switchChain({ id: chain.id });
+//   }
+//   return { wallet, account: account as Address };
+// }
+
+// export function shortAddr(a: string) {
+//   return `${a.slice(0, 6)}…${a.slice(-4)}`;
+// }
+
+import { createPublicClient, http } from "viem";
+import { chain } from "./contracts";
+
+export const publicClient = createPublicClient({ chain, transport: http() });
 
 export function shortAddr(a: string) {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;

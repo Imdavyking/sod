@@ -17,7 +17,10 @@ import {
   sodAbi,
   tokenAbi,
 } from "./lib/contracts";
-import { connectWallet, publicClient, shortAddr } from "./lib/wallet";
+import { useAccount, useConnect, useDisconnect, useWalletClient } from "wagmi";
+import { ConnectWallet } from "@zerodev/wallet-react-ui";
+import { publicClient, shortAddr } from "./lib/wallet";
+import { ZERODEV_PROJECT_ID } from "./lib/wagmi";
 import PrivatePanel from "./PrivatePanel";
 import { CampaignFields, CampaignHeader } from "./CampaignFields";
 import {
@@ -59,8 +62,14 @@ function errMsg(e: unknown) {
 }
 
 export default function App() {
-  const [wallet, setWallet] = useState<WalletClient | null>(null);
-  const [account, setAccount] = useState<Address | null>(null);
+  // Auth + signing now come from the ZeroDev embedded wallet (Google / passkey / email) via wagmi.
+  const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { data: walletClient } = useWalletClient();
+  const wallet = (walletClient ?? null) as WalletClient | null;
+  const account = (isConnected && address ? address : null) as Address | null;
+  const [authOpen, setAuthOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>(() => loadReceipts());
   const [refunded, setRefunded] = useState<Record<string, boolean>>({});
@@ -162,7 +171,7 @@ export default function App() {
       ? Omit<A & object, "account" | "chain">
       : never,
   ) {
-    if (!wallet || !account) throw new Error("Connect a wallet first");
+    if (!wallet || !account) throw new Error("Sign in first");
     const hash = await wallet.writeContract({
       ...(args as object),
       account,
@@ -172,12 +181,23 @@ export default function App() {
     return hash;
   }
 
-  const connect = () =>
-    run("Connecting wallet", async () => {
-      const { wallet, account } = await connectWallet();
-      setWallet(wallet);
-      setAccount(account);
-    });
+  const openSignIn = () => {
+    const connector =
+      connectors.find((c: any) => c.id === "zerodev-wallet") ?? connectors[0];
+    if (!ZERODEV_PROJECT_ID) {
+      setStatus({
+        kind: "error",
+        text: "Set VITE_ZERODEV_PROJECT_ID (or VITE_ZERODEV_RPC) to your ZeroDev project.",
+      });
+      return;
+    }
+    setAuthOpen(true);
+    connect({ connector });
+  };
+
+  useEffect(() => {
+    if (isConnected) setAuthOpen(false);
+  }, [isConnected]);
 
   const mint = () =>
     run("Minting 1,000 test USDG", () =>
@@ -298,11 +318,16 @@ export default function App() {
         {account ? (
           <div className="text-right text-sm">
             <div className="font-mono text-slate-300">{shortAddr(account)}</div>
+            <button
+              onClick={() => disconnect()}
+              className="text-xs text-slate-500 hover:text-slate-300"
+            >
+              Sign out
+            </button>
             <div className="text-slate-500">{fmt(balance)} USDG</div>
 
             <a
               href="https://faucet.paxos.com/"
-             
               className="mt-1 text-xs text-emerald-400 hover:underline disabled:opacity-50"
             >
               Get test USDG
@@ -310,14 +335,20 @@ export default function App() {
           </div>
         ) : (
           <button
-            onClick={connect}
+            onClick={openSignIn}
             disabled={busy}
             className="rounded-lg bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
           >
-            Connect wallet
+            Sign in
           </button>
         )}
       </header>
+
+      {authOpen && !account && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+          <ConnectWallet size="md" onClose={() => setAuthOpen(false)} />
+        </div>
+      )}
 
       <div className="mb-4 flex gap-2 text-sm">
         {(["public", "private"] as const).map((m) => (

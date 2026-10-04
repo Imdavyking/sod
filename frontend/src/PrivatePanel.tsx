@@ -148,7 +148,7 @@ export default function PrivatePanel(props: {
   }, [load, tick]);
 
   const cofhe = async () => {
-    if (!wallet || !account) throw new Error("Connect a wallet first");
+    if (!wallet || !account) throw new Error("Sign in first");
     return (await loadCofhe()).getCofhe(wallet, account);
   };
 
