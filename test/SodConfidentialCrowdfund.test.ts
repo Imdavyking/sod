@@ -365,24 +365,6 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
     });
   });
 
-  describe("Phase 3 assumption: encrypting for another sender", () => {
-    it("an amount encrypted for bob's address can be donated by bob, using alice's client", async () => {
-      const f = await loadFixture(deploy);
-      // Alice's client encrypts the input as if bob were the sender (as the gasless flow does for a smart account).
-      const [handle, proof] = await f.clients.alice
-        .encryptInputs([Encryptable.uint64(USDG(40))])
-        .setConsumingContract(f.sodAddr)
-        .setAccount(f.bob.address)
-        .execute();
-      const c = commitment(f.id, newSecret(), f.bob.address);
-      await f.sod
-        .connect(f.bob)
-        .donate(f.id, handle, proof, c, ethers.ZeroAddress);
-      expect(await totalOf(f)).to.equal(USDG(40));
-      expect(await balanceOf(f, f.bob)).to.equal(USDG(9_960));
-    });
-  });
-
   describe("refund protection", () => {
     it("rejects a wrong secret and a wrong refundTo (front-run protection)", async () => {
       const f = await loadFixture(deploy);

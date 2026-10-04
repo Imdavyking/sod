@@ -15,9 +15,6 @@ export const SOD_CONF_ADDRESS = (import.meta.env.VITE_SOD_CONF_ADDRESS ||
 export const ECUSDG_ADDRESS = (import.meta.env.VITE_ECUSDG_ADDRESS ||
   deployment.confidentialToken ||
   ZERO) as Address;
-export const ZERODEV_RPC = (import.meta.env.VITE_ZERODEV_RPC ||
-  deployment.zerodevRpc ||
-  "") as string;
 export const TOKEN_DECIMALS = 6;
 
 export const isConfigured =
@@ -45,8 +42,6 @@ export const tokenAbi = parseAbi([
 
 export const isPrivateConfigured =
   SOD_CONF_ADDRESS !== ZERO && ECUSDG_ADDRESS !== ZERO && isConfigured;
-export const isGaslessConfigured =
-  isPrivateConfigured && ZERODEV_RPC.length > 0;
 
 // Phase 2: encrypted amounts. `bytes32` stands in for the euint64 / externalEuint64 handle types.
 export const sodConfAbi = parseAbi([

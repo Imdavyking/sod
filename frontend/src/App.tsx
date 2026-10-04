@@ -79,7 +79,6 @@ export default function App() {
     text: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState<"public" | "private">("public");
 
   const refresh = useCallback(async () => {
@@ -188,7 +187,7 @@ export default function App() {
     if (!ZERODEV_PROJECT_ID) {
       setStatus({
         kind: "error",
-        text: "Set VITE_ZERODEV_PROJECT_ID (or VITE_ZERODEV_RPC) to your ZeroDev project.",
+        text: "Set VITE_ZERODEV_PROJECT_ID to your ZeroDev project ID.",
       });
       return;
     }
@@ -318,21 +317,7 @@ export default function App() {
         </div>
         {account ? (
           <div className="text-right text-sm">
-            <button
-              title="Copy address"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(account);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1500);
-                } catch {
-                  /* clipboard blocked */
-                }
-              }}
-              className="font-mono text-slate-300 hover:text-white"
-            >
-              {copied ? "Copied!" : shortAddr(account)}
-            </button>{" "}
+            <div className="font-mono text-slate-300">{shortAddr(account)}</div>
             <button
               onClick={() => disconnect()}
               className="text-xs text-slate-500 hover:text-slate-300"
@@ -340,6 +325,7 @@ export default function App() {
               Sign out
             </button>
             <div className="text-slate-500">{fmt(balance)} USDG</div>
+
             <a
               href="https://faucet.paxos.com/"
               className="mt-1 text-xs text-emerald-400 hover:underline disabled:opacity-50"

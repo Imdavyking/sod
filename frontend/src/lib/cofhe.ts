@@ -46,21 +46,16 @@ export async function getCofhe(
 /**
  * Encrypt a uint64 amount for `consumer`. Returns the handle and proof to pass as
  * (externalEuint64 encAmount, bytes proof).
- *
- * `sender` is whoever will be msg.sender when the input is consumed. For Phase 3 that is the Kernel
- * smart account, which is not the connected wallet, so we set it explicitly.
  */
 export async function encryptAmount(
   client: CofheClient,
   amount: bigint,
   consumer: Address,
-  sender?: Address,
 ): Promise<{ handle: Hex; proof: Hex }> {
-  let builder = client
+  const [handle, proof] = (await client
     .encryptInputs([Encryptable.uint64(amount)])
-    .setConsumingContract(consumer);
-  if (sender) builder = builder.setAccount(sender);
-  const [handle, proof] = (await builder.execute()) as unknown as [Hex, Hex];
+    .setConsumingContract(consumer)
+    .execute()) as unknown as [Hex, Hex];
   return { handle, proof };
 }
 

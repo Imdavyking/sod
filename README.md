@@ -2,7 +2,7 @@
 
 **Trustless, private crowdfunding on Arbitrum.**
 
-Sod is a GoFundMe-style platform where a smart contract, not a company, enforces the goal, the deadline, and refunds. Donors can take their money back before the deadline, and creators can only withdraw if the goal is met. Donation amounts are encrypted with Fhenix FHE, and donations are gasless with ZeroDev.
+Sod is a GoFundMe-style platform where a smart contract, not a company, enforces the goal, the deadline, and refunds. Donors can take their money back before the deadline, and creators can only withdraw if the goal is met. Donation amounts are encrypted with Fhenix FHE, and donors sign in with Google, a passkey or an email through ZeroDev, so no wallet extension is needed.
 
 Campaigns are funded in **USDG** (Global Dollar, issued by Paxos).
 
@@ -15,7 +15,7 @@ Campaigns are funded in **USDG** (Global Dollar, issued by Paxos).
 
 People who give to sensitive causes (activism, legal defense, medical bills, journalism) often don’t want their giving public. Centralized platforms can freeze campaigns or accounts, and transparent chains expose every donor and every amount.
 
-Sod moves the rules into a contract nobody can override, then hides the numbers and the gas trail.
+Sod moves the rules into a contract nobody can override, then hides the numbers.
 
 | Problem                           | Sod’s approach                                                          |
 | --------------------------------- | ----------------------------------------------------------------------- |
@@ -23,7 +23,7 @@ Sod moves the rules into a contract nobody can override, then hides the numbers 
 | Donor has no way out              | Refund before the deadline, plus automatic refunds if the goal fails    |
 | Refund can be hijacked            | Refund is bound to a secret and a destination address (front-run proof) |
 | Amounts are public                | Encrypted amounts and totals with Fhenix FHE                            |
-| Gas funding links wallets         | Sponsored gas with ZeroDev                                              |
+| Crypto wallets scare off donors   | Sign in with Google, a passkey or an email (ZeroDev embedded wallet)    |
 
 ---
 
@@ -31,15 +31,15 @@ Sod moves the rules into a contract nobody can override, then hides the numbers 
 
 ### Actors
 
-- **Donor** gives confidential USDG to a campaign.
+- **Donor** signs in, then gives confidential USDG to a campaign.
 - **Creator** starts a campaign and withdraws if the goal is met.
 - **Contract** holds the funds and enforces every rule.
 
 ### Campaign lifecycle
 
-1. **Create.** Creator calls `createCampaign(goal, deadline)`. The goal is in USDG base units (6 decimals).
+1. **Create.** Creator calls `createCampaign(name, description, imageURI, goal, deadline)`. The goal is in USDG base units (6 decimals).
 1. **Shield.** Donor wraps USDG into a confidential (FHERC20-style) token, eUSDG. The wrap is public, so wrapping more than you donate keeps the real donation hidden.
-1. **Donate.** Donor generates a one-time `refundSecret` in the browser, computes a commitment, encrypts the amount with the CoFHE client SDK, and donates from a fresh ZeroDev Kernel smart account with sponsored gas. The secret never leaves the browser until a refund.
+1. **Donate.** Donor generates a one-time `refundSecret` in the browser, computes a commitment, encrypts the amount with the CoFHE client SDK, and donates from their signed-in wallet. The secret never leaves the browser until a refund.
 1. **Refund before the deadline.** Donor reveals `refundSecret` and a `refundTo` address. The contract checks the commitment and returns the funds.
 1. **Settle at the deadline.**
 
@@ -67,12 +67,12 @@ Because `refundTo` is inside the hash, someone who copies the secret from the me
   - Donor refund: `FHE.select(goalMet, 0, donation)`
 - `FHE.allow(...)` lets each donor read only their own amount, and the creator read the total after settlement.
 
-### Gasless donations (ZeroDev)
+### Sign-in (ZeroDev)
 
-- Each donation comes from a fresh ZeroDev **Kernel** smart account, owned by a fresh EOA created in the browser.
-- A ZeroDev paymaster sponsors the gas, so the fresh account never needs ETH from a wallet tied to the donor.
-- Donations go out as ERC-4337 UserOperations.
-- Fhenix permits are EIP-712 signatures, and a Kernel account signs with ERC-1271 contract signatures. To avoid depending on that, a separate `viewer` EOA is granted decrypt rights via `FHE.allow(...)` and signs the permit instead.
+- ZeroDev is used only for onboarding. The `<ConnectWallet />` widget from `@zerodev/wallet-react-ui` lets a donor sign in with Google, a passkey or an email and gives them an embedded wallet.
+- The wallet runs in `EOA` mode, so the signed-in account is a plain key-backed address. It signs every transaction and the EIP-712 permits (ACPs) that Fhenix uses for decryption, which need to verify against the connected address.
+- Donors pay their own gas in Arbitrum Sepolia ETH.
+- The app talks to the wallet through wagmi, so the usual hooks (`useAccount`, `useWalletClient`) work.
 
 ---
 
@@ -88,12 +88,12 @@ Donor browser                         Arbitrum
 │                  │   withdraw()  │    Pausable (emergency)   │
 └────────┬─────────┘◀──────────────│  - goal / deadline rules  │
          │                         └─────────────┬─────────────┘
-         │ sponsored UserOps                     │ encrypted math
+         │ sign in / sign                        │ encrypted math
          ▼                                       ▼
 ┌──────────────────┐                   ┌───────────────────────┐
-│ ZeroDev Kernel   │                   │ Fhenix CoFHE          │
-│ smart account    │                   │  euint64 totals       │
-│ + paymaster      │                   │  FHE.add / FHE.gte    │
+│ ZeroDev wallet   │                   │ Fhenix CoFHE          │
+│ Google / passkey │                   │  euint64 totals       │
+│ / email          │                   │  FHE.add / FHE.gte    │
 └──────────────────┘                   └───────────────────────┘
 ```
 
@@ -109,7 +109,7 @@ Donor browser                         Arbitrum
 | Hardhat                        | Compile, test, deploy                                          |
 | OpenZeppelin                   | Audited building blocks for the contracts                      |
 | Fhenix CoFHE                   | Encrypted amounts and totals                                   |
-| ZeroDev                        | Gas-sponsored smart accounts                                   |
+| ZeroDev                        | Sign-in and embedded wallet (Google, passkey, email)           |
 
 ### About USDG
 
@@ -125,9 +125,9 @@ Be honest with donors about this table.
 | ---------------------- | ------------------------------------------------------------------------------- |
 | Donation amount        | Hidden, if the donor wrapped more than they donated                             |
 | Running total          | Hidden until settlement                                                         |
-| Donor address          | **Public**, but harder to link because each donation comes from a fresh account |
-| Gas-funding link       | Removed by the paymaster                                                        |
-| Token funding link     | Still visible: the fresh account has to receive tokens from somewhere           |
+| Donor address          | **Public**: the signed-in wallet address is the donor                           |
+| Shield and unshield    | **Public**: wrapping and unwrapping amounts are visible on-chain                |
+| Refunds                | Public events, with an optional different refund address                        |
 | Creator payout address | Public                                                                          |
 
 **Sod does not make donors anonymous.** FHE hides numbers, not who sent a transaction. True donor unlinkability needs a ZK pool (Semaphore or Tornado-style) or an existing privacy protocol, and is on the roadmap below.
@@ -140,8 +140,8 @@ Be honest with donors about this table.
 - **Token:** USDG (Paxos Global Dollar), MockUSDG on testnet
 - **Contracts:** Solidity, Hardhat, OpenZeppelin Contracts v5
 - **Privacy:** Fhenix CoFHE (`@fhenixprotocol/cofhe-contracts`, `@cofhe/sdk`, `@cofhe/hardhat-plugin` for tests)
-- **Account abstraction:** ZeroDev (`@zerodev/sdk`, `@zerodev/ecdsa-validator`) with `viem`
-- **Frontend:** React, Tailwind CSS, viem with an injected wallet
+- **Sign-in:** ZeroDev embedded wallet (`@zerodev/wallet-react`, `@zerodev/wallet-react-ui`) with `wagmi` and `viem`
+- **Frontend:** React, Tailwind CSS, wagmi, viem
 - **Tests:** Hardhat with Chai (Hardhat network)
 
 Package names and APIs for Fhenix and ZeroDev change often. Check their current docs (cofhe-docs.fhenix.zone and docs.zerodev.app) before installing.
@@ -154,7 +154,7 @@ Package names and APIs for Fhenix and ZeroDev change often. Check their current 
 | ---------------- | ---------------------------------------------------------------------------------------------------- |
 | **OpenZeppelin** | `SafeERC20`, `ReentrancyGuard`, `Pausable`, and `Ownable` or `AccessControl` for the emergency pause |
 | **Fhenix**       | Encrypted donation amounts, encrypted totals, goal check                                             |
-| **ZeroDev**      | Kernel smart accounts and gas sponsorship                                                            |
+| **ZeroDev**      | Seamless onboarding: sign in with Google, a passkey or an email, no wallet extension                 |
 | **Paxos / Global Dollar** | USDG as the campaign currency                                                               |
 
 ---
@@ -179,13 +179,27 @@ cd frontend && npm install && npm run dev
 
 If `binaries.soliditylang.org` is blocked on your network, compile with the solc-js package instead: `SOLCJS=1 npx hardhat test`.
 
-The frontend reads addresses from `frontend/src/contracts/deployment.json` (written by the deploy script) or from the `VITE_*` variables below. It talks to the chain with viem and an injected wallet.
+The frontend reads addresses from `frontend/src/contracts/deployment.json` (written by the deploy script) or from the `VITE_*` variables below. It talks to the chain with viem, and users sign in through ZeroDev.
+
+`frontend/.npmrc` sets `legacy-peer-deps=true` because `@cofhe/sdk` and the ZeroDev packages declare peer dependencies that npm would otherwise reject. The ZeroDev packages are pinned, since they are early 0.0.x releases.
 
 ### Environment variables
 
 Root `.env`: `PRIVATE_KEY`, `ARBITRUM_SEPOLIA_RPC`. Optional: `TOKEN_ADDRESS` (use an existing USDG token instead of deploying `MockUSDG`), `SKIP_CONFIDENTIAL=1`.
 
-`frontend/.env`: `VITE_SOD_ADDRESS`, `VITE_TOKEN_ADDRESS`, `VITE_SOD_CONF_ADDRESS`, `VITE_EUSDG_ADDRESS` (all optional if the deploy script wrote `deployment.json`), and `VITE_ZERODEV_RPC` in the form `https://rpc.zerodev.app/api/v3/<PROJECT_ID>/chain/421614`.
+`frontend/.env`: `VITE_SOD_ADDRESS`, `VITE_TOKEN_ADDRESS`, `VITE_SOD_CONF_ADDRESS`, `VITE_EUSDG_ADDRESS` (all optional if the deploy script wrote `deployment.json`), and `VITE_ZERODEV_PROJECT_ID` (required for sign-in).
+
+### ZeroDev dashboard setup
+
+In [dashboard.zerodev.app](https://dashboard.zerodev.app), for your project:
+
+1. Enable **Arbitrum Sepolia**.
+2. Add your app origin to the allowed origins, for example `http://localhost:5173`.
+3. Turn on the sign-in methods you want (Google, passkey, email).
+4. Under Google OAuth, add the exact page URL as a redirect URL, for example `http://localhost:5173/`. It must match exactly, including the trailing slash.
+5. Copy the project ID into `VITE_ZERODEV_PROJECT_ID`.
+
+A new sign-in is a new address, so it starts with no balance. Fund it with a little Arbitrum Sepolia ETH for gas, then get test USDG (or mint `MockUSDG`) and shield some before using private mode.
 
 ### Project layout
 
@@ -201,7 +215,7 @@ sod/
 │   └── SodConfidentialCrowdfund.test.ts
 ├── scripts/deploy.ts
 ├── hardhat.config.ts
-└── frontend/            # React + Tailwind (viem, @cofhe/sdk, @zerodev/sdk)
+└── frontend/            # React + Tailwind (wagmi, viem, @cofhe/sdk, @zerodev/wallet-react-ui)
 ```
 
 ---
@@ -210,8 +224,8 @@ sod/
 
 | Function                                      | Who                    | Rule                                                                                                  |
 | --------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------- |
-| `createCampaign(goal, deadline)`              | Anyone                 | Deadline must be in the future                                                                        |
-| `donate(id, amount, commitment)`              | Anyone                 | Before the deadline; pulls tokens with `SafeERC20`                                                    |
+| `createCampaign(name, description, imageURI, goal, deadline)` | Anyone | Name required, description up to 2,000 characters, image link up to 300. Deadline must be in the future |
+| `donate(id, amount, commitment)`              | Anyone                 | Before the deadline; pulls tokens with `SafeERC20`. The confidential version is `donate(id, encAmount, proof, commitment, viewer)`, where `viewer` is an optional extra address allowed to decrypt the donation (the app passes the zero address) |
 | `refund(id, donationIndex, secret, refundTo)` | Anyone with the secret | Valid before the deadline, or after the deadline if the goal failed. Commitment must match. Once only |
 | `withdraw(id)`                                | Creator only           | After the deadline, goal met, once only                                                               |
 
@@ -241,6 +255,7 @@ The test suite covers:
 - Non-creator withdrawal is blocked
 - Double withdrawal is blocked
 - Donating after the deadline is blocked
+- Campaign name, description and image link are stored and validated
 - Encrypted donations, reveal, unshield, and access-control checks on the confidential contract
 
 Run with `npx hardhat test`.
@@ -256,7 +271,9 @@ Read these before trusting Sod with real funds.
 - **Wrapping into the confidential token is public.** Privacy depends on wrapping more than you donate and on a large enough crowd. With only a few donors, timing and sizes can narrow things down.
 - **Unwrapping reveals the amount** when the creator converts confidential tokens back to USDG.
 - **Issuer risk.** USDG is issued by Paxos, which can pause the token or blocklist addresses. All shielded USDG sits in one wrapper contract, so a freeze on that address would block every unshield. Sod uses `MockUSDG` on testnet, so this risk applies only to a real USDG deployment.
-- **Gas costs and latency** are higher for FHE operations, and decryption is asynchronous.
+- **Donors pay gas.** Every account needs a little ETH on the network, and FHE operations cost more gas and are slower, with asynchronous decryption.
+- **Embedded wallet.** Access to a donor's wallet depends on their Google, passkey or email login and on ZeroDev's service.
+- **Refund secrets live in the browser.** Use Back up after each donation so you can refund from another device.
 - **No campaign or identity verification.** Fraud and compliance risks apply. Crypto fundraising rules vary by country, so this is not legal advice.
 - **Emergency pause.** The pause role can only stop new donations. It can never move campaign funds.
 

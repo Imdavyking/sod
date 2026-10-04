@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  encodeFunctionData,
   formatUnits,
   isAddress,
   parseEventLogs,
@@ -15,9 +14,7 @@ import {
   SOD_CONF_ADDRESS,
   TOKEN_ADDRESS,
   TOKEN_DECIMALS,
-  chain,
   ecusdgAbi,
-  isGaslessConfigured,
   isPrivateConfigured,
   sodConfAbi,
   tokenAbi,
@@ -50,9 +47,8 @@ interface PCampaign {
   donationCount: bigint;
 }
 
-// The Fhenix and ZeroDev SDKs are large and have side effects, so they load only when private or gasless mode is used.
+// The Fhenix SDK is large and has side effects, so it loads only when private mode is used.
 const loadCofhe = () => import("./lib/cofhe");
-const loadGasless = () => import("./lib/gasless");
 
 type Run = <T>(label: string, fn: () => Promise<T>) => Promise<T | undefined>;
 type Send = (args: object) => Promise<Hex>;
@@ -246,118 +242,20 @@ export default function PrivatePanel(props: {
       downloadReceipt({ ...receipt, donationIndex: index, txHash: hash });
     });
 
-  // ---------- Phase 3 action ----------
-
-  /**
-   * Donate from a fresh Kernel smart account with sponsored gas.
-   * The main wallet only funds the fresh account (a visible link, see the README privacy table).
-   */
-  const donateGasless = (c: PCampaign, amountStr: string, wrapStr: string) =>
-    act("Donating gaslessly", async () => {
-      const amount = parseUnits(amountStr, TOKEN_DECIMALS);
-      const wrap = parseUnits(wrapStr || amountStr, TOKEN_DECIMALS);
-      if (wrap < amount) throw new Error("Wrap at least as much as you donate");
-
-      const { createGaslessAccount, sendSponsored } = await loadGasless();
-      const kernel = await createGaslessAccount();
-      const refundTo = kernel.signer.address; // the throwaway EOA, so the donor can reclaim with its key
-
-      const secret = newSecret();
-      const receipt: Receipt = {
-        campaignId: c.id.toString(),
-        donationIndex: "pending",
-        amount: amount.toString(),
-        secret,
-        refundTo,
-        createdAt: Date.now(),
-        mode: "private",
-        gaslessKey: kernel.privateKey,
-        smartAccount: kernel.address,
-      };
-      saveReceipt(receipt);
-      downloadReceipt(receipt); // the key must not live only in this browser tab
-
-      // 1. Fund the fresh smart account with confidential tokens (public wrap, from the main wallet).
-      await send({
-        address: TOKEN_ADDRESS,
-        abi: tokenAbi,
-        functionName: "approve",
-        args: [ECUSDG_ADDRESS, wrap],
-      });
-      await send({
-        address: ECUSDG_ADDRESS,
-        abi: ecusdgAbi,
-        functionName: "shield",
-        args: [kernel.address, wrap],
-      });
-
-      // 2. Encrypt the amount as if the smart account were the sender.
-      setStatusHint("Encrypting amount for the smart account…");
-      const { handle, proof } = await (
-        await loadCofhe()
-      ).encryptAmount(await cofhe(), amount, SOD_CONF_ADDRESS, kernel.address);
-
-      // 3. One sponsored UserOperation: authorise Sod, then donate. `viewer` = the throwaway EOA,
-      //    because a smart account cannot sign the EIP-712 permits CoFHE uses for decryption.
-      const hash = await sendSponsored(kernel, [
-        {
-          to: ECUSDG_ADDRESS,
-          data: encodeFunctionData({
-            abi: ecusdgAbi,
-            functionName: "setOperator",
-            args: [SOD_CONF_ADDRESS, Number(nowSec()) + 30 * DAY],
-          }),
-        },
-        {
-          to: SOD_CONF_ADDRESS,
-          data: encodeFunctionData({
-            abi: sodConfAbi,
-            functionName: "donate",
-            args: [
-              c.id,
-              handle,
-              proof,
-              computeCommitment(c.id, secret, refundTo),
-              kernel.signer.address,
-            ],
-          }),
-        },
-      ]);
-      const index = await donationIndexFrom(hash);
-      updateReceipt(secret, { donationIndex: index, txHash: hash });
-      downloadReceipt({ ...receipt, donationIndex: index, txHash: hash });
-    });
-
   const refund = (r: Receipt) =>
-    act("Refunding", async () => {
-      const args = [
-        BigInt(r.campaignId),
-        BigInt(r.donationIndex),
-        r.secret,
-        r.refundTo,
-      ] as const;
-      if (r.gaslessKey) {
-        const { createGaslessAccount, sendSponsored } = await loadGasless();
-        const kernel = await createGaslessAccount(r.gaslessKey);
-        await sendSponsored(kernel, [
-          {
-            to: SOD_CONF_ADDRESS,
-            data: encodeFunctionData({
-              abi: sodConfAbi,
-              functionName: "refund",
-              args,
-            }),
-          },
-        ]);
-      } else {
-        await send({
-          address: SOD_CONF_ADDRESS,
-          abi: sodConfAbi,
-          functionName: "refund",
-          args,
-        });
-      }
-    });
+    act("Refunding", () =>
+      send({
+        address: SOD_CONF_ADDRESS,
+        abi: sodConfAbi,
+        functionName: "refund",
+        args: [
+          BigInt(r.campaignId),
+          BigInt(r.donationIndex),
+          r.secret,
+          r.refundTo,
+        ],
+      }),
+    );
 
   const withdraw = (c: PCampaign) =>
     act("Withdrawing", () =>
@@ -401,33 +299,14 @@ export default function PrivatePanel(props: {
 
   // ---------- Reveal helpers (decrypt locally, never on-chain) ----------
 
-  const reveal = (
-    key: string,
-    label: string,
-    readHandle: () => Promise<Hex>,
-    asEoaKey?: Hex,
-  ) =>
+  const reveal = (key: string, label: string, readHandle: () => Promise<Hex>) =>
     act(label, async () => {
       const handle = await readHandle();
-      let value: bigint;
-      if (asEoaKey) {
-        // Gasless donation: the throwaway EOA was granted access, not the smart account.
-        const { privateKeyToAccount } = await import("viem/accounts");
-        const { createWalletClient, http } = await import("viem");
-        const eoa = privateKeyToAccount(asEoaKey);
-        const wc = createWalletClient({
-          account: eoa,
-          chain,
-          transport: http(),
-        });
-        const sdk = await loadCofhe();
-        value = await sdk.decryptUint64(
-          await sdk.getCofhe(wc, eoa.address),
-          handle,
-        );
-      } else {
-        value = await (await loadCofhe()).decryptUint64(await cofhe(), handle);
-      }
+      if (/^0x0+$/.test(handle))
+        throw new Error("Nothing encrypted here yet for this address.");
+      const value = await (
+        await loadCofhe()
+      ).decryptUint64(await cofhe(), handle);
       setRevealed((p) => ({ ...p, [key]: `${fmt(value)} USDG` }));
     });
 
@@ -457,7 +336,6 @@ export default function PrivatePanel(props: {
             args: [BigInt(r.campaignId), BigInt(r.donationIndex)],
           })) as readonly [Hex, Hex, boolean]
         )[0],
-      r.gaslessKey,
     );
 
   const revealTotal = (c: PCampaign) =>
@@ -627,7 +505,6 @@ export default function PrivatePanel(props: {
             refunded={refunded}
             revealed={revealed}
             onDonate={donate}
-            onDonateGasless={donateGasless}
             onRefund={refund}
             onWithdraw={withdraw}
             onRevealDonation={revealDonation}
@@ -647,7 +524,6 @@ function PrivateCard(props: {
   refunded: Record<string, boolean>;
   revealed: Record<string, string>;
   onDonate: (c: PCampaign, amount: string, refundTo: Address) => void;
-  onDonateGasless: (c: PCampaign, amount: string, wrap: string) => void;
   onRefund: (r: Receipt) => void;
   onWithdraw: (c: PCampaign) => void;
   onRevealDonation: (r: Receipt) => void;
@@ -655,8 +531,6 @@ function PrivateCard(props: {
 }) {
   const { c, account, busy, receipts, refunded, revealed } = props;
   const [amount, setAmount] = useState("");
-  const [wrap, setWrap] = useState("");
-  const [gasless, setGasless] = useState(false);
   const [custom, setCustom] = useState("");
   const [useFresh, setUseFresh] = useState(false);
 
@@ -665,10 +539,7 @@ function PrivateCard(props: {
     !!account && account.toLowerCase() === c.creator.toLowerCase();
   const refundTo = (useFresh ? custom : account) as Address;
   const canDonate =
-    !!account &&
-    !ended &&
-    Number(amount) > 0 &&
-    (gasless || isAddress(refundTo ?? ""));
+    !!account && !ended && Number(amount) > 0 && isAddress(refundTo ?? "");
 
   return (
     <article className="rounded-xl border border-slate-800 bg-slate-900 p-4">
@@ -710,70 +581,30 @@ function PrivateCard(props: {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
-            {gasless && (
-              <input
-                className="w-40 rounded-md bg-slate-800 px-3 py-2 text-sm"
-                placeholder="Wrap (≥ amount)"
-                inputMode="decimal"
-                value={wrap}
-                onChange={(e) => setWrap(e.target.value)}
-              />
-            )}
             <button
               disabled={!canDonate || busy}
-              onClick={() =>
-                gasless
-                  ? props.onDonateGasless(c, amount, wrap)
-                  : props.onDonate(c, amount, refundTo)
-              }
+              onClick={() => props.onDonate(c, amount, refundTo)}
               className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-40"
             >
-              {gasless ? "Donate (gasless)" : "Donate privately"}
+              Donate privately
             </button>
           </div>
 
-          <label
-            className={`flex items-center gap-2 text-xs ${
-              isGaslessConfigured ? "text-slate-400" : "text-slate-600"
-            }`}
-          >
+          <label className="flex items-center gap-2 text-xs text-slate-400">
             <input
               type="checkbox"
-              disabled={!isGaslessConfigured}
-              checked={gasless}
-              onChange={(e) => setGasless(e.target.checked)}
+              checked={useFresh}
+              onChange={(e) => setUseFresh(e.target.checked)}
             />
-            Gasless from a fresh smart account
-            {!isGaslessConfigured && " (set VITE_ZERODEV_RPC to enable)"}
+            Send any refund to a different address
           </label>
-          {gasless && (
-            <p className="text-xs text-slate-500">
-              Your wallet funds a fresh account, which then donates with
-              sponsored gas. The funding step is still visible on-chain, so this
-              removes the gas link, not the token link. Refunds go to the
-              throwaway key in your backup file.
-            </p>
-          )}
-
-          {!gasless && (
-            <>
-              <label className="flex items-center gap-2 text-xs text-slate-400">
-                <input
-                  type="checkbox"
-                  checked={useFresh}
-                  onChange={(e) => setUseFresh(e.target.checked)}
-                />
-                Send any refund to a different address
-              </label>
-              {useFresh && (
-                <input
-                  className="w-full rounded-md bg-slate-800 px-3 py-2 font-mono text-xs"
-                  placeholder="0x… refund address"
-                  value={custom}
-                  onChange={(e) => setCustom(e.target.value)}
-                />
-              )}
-            </>
+          {useFresh && (
+            <input
+              className="w-full rounded-md bg-slate-800 px-3 py-2 font-mono text-xs"
+              placeholder="0x… refund address"
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+            />
           )}
         </div>
       )}
@@ -814,13 +645,7 @@ function PrivateCard(props: {
                   <span className="text-slate-300">
                     {revealed[`d${r.secret}`] ?? "🔒 encrypted"}{" "}
                     <span className="text-xs text-slate-500">
-                      {pending
-                        ? "(unconfirmed)"
-                        : done
-                        ? "(refunded)"
-                        : r.gaslessKey
-                        ? "(gasless)"
-                        : ""}
+                      {pending ? "(unconfirmed)" : done ? "(refunded)" : ""}
                     </span>
                   </span>
                   <span className="flex gap-3">
