@@ -19,7 +19,7 @@ export const wagmiConfig = createConfig({
       // '7702': the user's address is their embedded EOA, delegated to a Kernel smart account.
       // Keeping the address == the signing EOA matters here: CoFHE decryption permits are EIP-712
       // signatures that must verify against the connected address.
-      mode: "7702",
+      mode: "EOA",
     }),
   ],
   transports: { [chain.id]: http() },
