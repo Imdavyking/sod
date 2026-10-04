@@ -2,4 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-body { @apply bg-slate-950 text-slate-100 antialiased; }
+html { scroll-behavior: smooth; }
+body {
+  @apply bg-cream text-ink antialiased;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+input, textarea, select { @apply text-ink placeholder:text-slate-500; }
+input:focus, textarea:focus { @apply outline-none ring-2 ring-brand-500/40; }
+summary::-webkit-details-marker { display: none; }

@@ -27,6 +27,7 @@ import {
 import { ConnectWallet, SignUp } from "@zerodev/wallet-react-ui";
 import { publicClient, shortAddr } from "./lib/wallet";
 import { ZERODEV_PROJECT_ID } from "./lib/wagmi";
+import { Logo } from "./art";
 import PrivatePanel from "./PrivatePanel";
 import { CampaignFields, CampaignHeader } from "./CampaignFields";
 import {
@@ -319,45 +320,61 @@ export default function App() {
     );
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Sod</h1>
-          <p className="text-sm text-slate-400">
-            Trustless crowdfunding on Arbitrum · testnet prototype
-          </p>
-        </div>
-        {account ? (
-          <div className="text-right text-sm">
-            <div className="font-mono text-slate-300">{shortAddr(account)}</div>
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-40 border-b border-ink/10 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
+          <a href="#/" className="flex items-center gap-2.5" title="Back to home">
+            <Logo />
+            <span className="text-xl font-extrabold tracking-tight">Sod</span>
+            <span className="hidden rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700 sm:inline">
+              Testnet
+            </span>
+          </a>
+          {account ? (
+            <div className="flex items-center gap-4 text-sm">
+              <div className="hidden text-right sm:block">
+                <div className="font-semibold text-ink">{fmt(balance)} USDG</div>
+                <a
+                  href="https://faucet.paxos.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-medium text-brand-700 hover:underline"
+                >
+                  Get test USDG
+                </a>
+              </div>
+              <div className="flex items-center gap-2 rounded-full border border-ink/10 bg-white py-1.5 pl-3 pr-1.5">
+                <span className="font-mono text-xs text-slate-300">{shortAddr(account)}</span>
+                <button
+                  onClick={() => disconnect()}
+                  className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-300 hover:bg-slate-700"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          ) : (
             <button
-              onClick={() => disconnect()}
-              className="text-xs text-slate-500 hover:text-slate-300"
+              onClick={openSignIn}
+              disabled={busy}
+              className="rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-400 disabled:opacity-50"
             >
-              Sign out
+              Sign in
             </button>
-            <div className="text-slate-500">{fmt(balance)} USDG</div>
-
-            <a
-              href="https://faucet.paxos.com/"
-              className="mt-1 text-xs text-emerald-400 hover:underline disabled:opacity-50"
-            >
-              Get test USDG
-            </a>
-          </div>
-        ) : (
-          <button
-            onClick={openSignIn}
-            disabled={busy}
-            className="rounded-lg bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
-          >
-            Sign in
-          </button>
-        )}
+          )}
+        </div>
       </header>
 
+      <div className="mx-auto max-w-4xl px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-extrabold tracking-tight">Campaigns</h1>
+        <p className="mt-1 text-slate-400">
+          Back a cause, or start your own. Refunds are guaranteed if the goal is missed.
+        </p>
+      </div>
+
       {authOpen && !account && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <ConnectWallet
             size="md"
             onClose={() => setAuthOpen(false)}
@@ -383,7 +400,7 @@ export default function App() {
             onClick={() => setMode(m)}
             className={`rounded-full px-4 py-1.5 ${
               mode === m
-                ? "bg-slate-100 text-slate-950"
+                ? "bg-ink text-white"
                 : "bg-slate-800 text-slate-300 hover:bg-slate-700"
             }`}
           >
@@ -442,7 +459,7 @@ export default function App() {
 
       {mode === "public" && (
         <section className="mt-8 space-y-4">
-          <h2 className="text-lg font-semibold">Campaigns</h2>
+          <h2 className="text-lg font-bold">All campaigns</h2>
           {campaigns.length === 0 && (
             <p className="text-sm text-slate-500">No campaigns yet.</p>
           )}
@@ -463,6 +480,7 @@ export default function App() {
           ))}
         </section>
       )}
+      </div>
     </div>
   );
 }
@@ -484,7 +502,7 @@ function CreateForm({
     new Date(deadline).getTime() > Date.now();
   return (
     <form
-      className="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4"
+      className="space-y-3 rounded-2xl border border-ink/10 bg-white p-5 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault();
         if (valid) onCreate(info, goal, deadline);
@@ -508,7 +526,7 @@ function CreateForm({
         />
         <button
           disabled={!valid || busy}
-          className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-40"
+          className="rounded-full bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-400 disabled:opacity-40"
         >
           Create
         </button>
@@ -557,7 +575,7 @@ function CampaignCard(props: {
     !!account && !ended && Number(amount) > 0 && isAddress(refundTo ?? "");
 
   return (
-    <article className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+    <article className="rounded-2xl border border-ink/10 bg-white p-5 shadow-sm">
       <CampaignHeader id={c.id} info={c.info} />
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs text-slate-500">
@@ -597,7 +615,7 @@ function CampaignCard(props: {
             <button
               disabled={!canDonate || busy}
               onClick={() => props.onDonate(c, amount, refundTo)}
-              className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-40"
+              className="rounded-full bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-400 disabled:opacity-40"
             >
               Donate
             </button>
@@ -625,7 +643,7 @@ function CampaignCard(props: {
         <button
           disabled={busy}
           onClick={() => props.onWithdraw(c)}
-          className="mt-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-40"
+          className="mt-2 rounded-full bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-400 disabled:opacity-40"
         >
           Withdraw {fmt(c.total)} USDG
         </button>
