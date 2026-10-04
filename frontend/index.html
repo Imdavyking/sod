@@ -4,8 +4,38 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sod — trustless crowdfunding</title>
+    <style>
+      body { margin: 0; background: #020617; color: #e2e8f0; font-family: system-ui, sans-serif; }
+      #boot-error { display: none; max-width: 42rem; margin: 2rem auto; padding: 1rem; font-size: 14px; }
+      #boot-error pre { white-space: pre-wrap; background: #0f172a; color: #fecaca; padding: .75rem; border-radius: .5rem; overflow: auto; }
+    </style>
+    <script>
+      // Shows load-time failures (a failed import, a thrown top-level error) instead of a blank page.
+      (function () {
+        function show(msg) {
+          var el = document.getElementById("boot-error");
+          if (!el) return;
+          el.style.display = "block";
+          el.querySelector("pre").textContent += msg + "\n\n";
+        }
+        window.addEventListener("error", function (e) {
+          var el = e.target;
+          if (el && el !== window) {
+            // A resource failed to load. Only a failed <script> means the app cannot start;
+            // a broken campaign image or a blocked font must not show a scary banner.
+            if (el.tagName === "SCRIPT") show("Failed to load script: " + el.src);
+            return;
+          }
+          show((e.error && e.error.stack) || e.message);
+        }, true);
+        window.addEventListener("unhandledrejection", function (e) {
+          show("Unhandled promise rejection: " + ((e.reason && e.reason.stack) || e.reason));
+        });
+      })();
+    </script>
   </head>
   <body>
+    <div id="boot-error"><strong>Sod failed to start</strong><pre></pre></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

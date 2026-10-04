@@ -1,6 +1,9 @@
 import { expect } from "chai";
 import hre, { ethers } from "hardhat";
-import { time, loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import {
+  time,
+  loadFixture,
+} from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { Encryptable, FheTypes } from "@cofhe/sdk";
 
 const USDC = (n: number) => BigInt(n) * 10n ** 6n;
@@ -9,14 +12,18 @@ const FAR_FUTURE = 2n ** 47n; // operator expiry
 
 function commitment(id: bigint | number, secret: string, refundTo: string) {
   return ethers.keccak256(
-    ethers.AbiCoder.defaultAbiCoder().encode(["uint256", "bytes32", "address"], [id, secret, refundTo])
+    ethers.AbiCoder.defaultAbiCoder().encode(
+      ["uint256", "bytes32", "address"],
+      [id, secret, refundTo],
+    ),
   );
 }
 const newSecret = () => ethers.hexlify(ethers.randomBytes(32));
 
 describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
   async function deploy() {
-    const [owner, creator, alice, bob, mallory, freshAddr, viewer] = await ethers.getSigners();
+    const [owner, creator, alice, bob, mallory, freshAddr, viewer] =
+      await ethers.getSigners();
 
     const usdc = await ethers.deployContract("MockUSDC");
     const lib = await ethers.deployContract("ERC20ConfidentialLib");
@@ -24,13 +31,18 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
       libraries: { ERC20ConfidentialLib: await lib.getAddress() },
     });
     const eusdc = await Eusdc.deploy(await usdc.getAddress());
-    const sod = await ethers.deployContract("SodConfidentialCrowdfund", [await eusdc.getAddress(), owner.address]);
+    const sod = await ethers.deployContract("SodConfidentialCrowdfund", [
+      await eusdc.getAddress(),
+      owner.address,
+    ]);
     const sodAddr = await sod.getAddress();
 
     // Each donor shields 10,000 USDC (public wrap) and authorises Sod as operator.
     for (const s of [alice, bob, mallory]) {
       await usdc.mint(s.address, USDC(10_000));
-      await usdc.connect(s).approve(await eusdc.getAddress(), ethers.MaxUint256);
+      await usdc
+        .connect(s)
+        .approve(await eusdc.getAddress(), ethers.MaxUint256);
       await eusdc.connect(s).shield(s.address, USDC(10_000));
       await eusdc.connect(s).setOperator(sodAddr, FAR_FUTURE);
     }
@@ -43,16 +55,46 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
     };
 
     const deadline = BigInt((await time.latest()) + 7 * DAY);
-    await sod.connect(creator).createCampaign(USDC(1_000), deadline);
+    await sod
+      .connect(creator)
+      .createCampaign(
+        "Test campaign",
+        "A test description",
+        "ipfs://bafytest",
+        USDC(1_000),
+        deadline,
+      );
 
-    return { sod, sodAddr, usdc, eusdc, owner, creator, alice, bob, mallory, freshAddr, viewer, clients, deadline, id: 0n };
+    return {
+      sod,
+      sodAddr,
+      usdc,
+      eusdc,
+      owner,
+      creator,
+      alice,
+      bob,
+      mallory,
+      freshAddr,
+      viewer,
+      clients,
+      deadline,
+      id: 0n,
+    };
   }
   type F = Awaited<ReturnType<typeof deploy>>;
 
-  const plain = async (handle: string | bigint) => hre.cofhe.mocks.getPlaintext(BigInt(handle));
-  const balanceOf = async (f: F, who: { address: string }) => plain(await f.eusdc.confidentialBalanceOf(who.address));
+  const plain = async (handle: string | bigint) =>
+    hre.cofhe.mocks.getPlaintext(BigInt(handle));
+  const balanceOf = async (f: F, who: { address: string }) =>
+    plain(await f.eusdc.confidentialBalanceOf(who.address));
 
-  async function donate(f: F, name: "alice" | "bob" | "mallory", amount: bigint, opts?: { refundTo?: string; viewer?: string }) {
+  async function donate(
+    f: F,
+    name: "alice" | "bob" | "mallory",
+    amount: bigint,
+    opts?: { refundTo?: string; viewer?: string },
+  ) {
     const donor = f[name];
     const secret = newSecret();
     const refundTo = opts?.refundTo ?? donor.address;
@@ -61,13 +103,64 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
       .setConsumingContract(f.sodAddr)
       .execute();
     const c = commitment(f.id, secret, refundTo);
-    const args = [f.id, handle, proof, c, opts?.viewer ?? ethers.ZeroAddress] as const;
+    const args = [
+      f.id,
+      handle,
+      proof,
+      c,
+      opts?.viewer ?? ethers.ZeroAddress,
+    ] as const;
     const index = await f.sod.connect(donor).donate.staticCall(...args);
     await f.sod.connect(donor).donate(...args);
     return { secret, refundTo, index };
   }
 
   const totalOf = async (f: F) => plain(await f.sod.totalHandle(f.id));
+
+  describe("campaign info (name, description, image)", () => {
+    it("stores the name, description and image link and enforces the same limits as the public contract", async () => {
+      const f = await loadFixture(deploy);
+      const future = BigInt((await time.latest()) + DAY);
+      await expect(
+        f.sod
+          .connect(f.creator)
+          .createCampaign(
+            "Legal defence fund",
+            "Costs of a court case.",
+            "https://example.org/a.png",
+            USDC(5),
+            future,
+          ),
+      )
+        .to.emit(f.sod, "CampaignInfoSet")
+        .withArgs(
+          1n,
+          "Legal defence fund",
+          "Costs of a court case.",
+          "https://example.org/a.png",
+        );
+      const [name, description, imageURI] = await f.sod.getCampaignInfo(1);
+      expect([name, description, imageURI]).to.deep.equal([
+        "Legal defence fund",
+        "Costs of a court case.",
+        "https://example.org/a.png",
+      ]);
+
+      await expect(
+        f.sod.connect(f.creator).createCampaign("", "", "", USDC(5), future),
+      ).to.be.revertedWithCustomError(f.sod, "InvalidName");
+      await expect(
+        f.sod
+          .connect(f.creator)
+          .createCampaign("n", "a".repeat(2001), "", USDC(5), future),
+      ).to.be.revertedWithCustomError(f.sod, "DescriptionTooLong");
+      await expect(
+        f.sod
+          .connect(f.creator)
+          .createCampaign("n", "", "a".repeat(301), USDC(5), future),
+      ).to.be.revertedWithCustomError(f.sod, "ImageURITooLong");
+    });
+  });
 
   describe("successful campaign", () => {
     it("keeps amounts and the total encrypted, then pays the creator the full total", async () => {
@@ -79,7 +172,9 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
       expect(await balanceOf(f, f.alice)).to.equal(USDC(9_400));
 
       await time.increaseTo(f.deadline);
-      await expect(f.sod.connect(f.creator).withdraw(f.id)).to.emit(f.sod, "Withdrawn").withArgs(f.id, f.creator.address);
+      await expect(f.sod.connect(f.creator).withdraw(f.id))
+        .to.emit(f.sod, "Withdrawn")
+        .withArgs(f.id, f.creator.address);
       expect(await balanceOf(f, f.creator)).to.equal(USDC(1_100));
       expect(await balanceOf(f, { address: f.sodAddr })).to.equal(0n);
     });
@@ -87,11 +182,17 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
     it("never writes a donation amount into events or public storage", async () => {
       const f = await loadFixture(deploy);
       const a = await donate(f, "alice", USDC(777));
-      const [, , donationLogs] = [null, null, await f.sod.queryFilter(f.sod.filters.Donated())];
+      const [, , donationLogs] = [
+        null,
+        null,
+        await f.sod.queryFilter(f.sod.filters.Donated()),
+      ];
       const ev = donationLogs[0];
       expect(ev.args.donor).to.equal(f.alice.address);
       // The only 32-byte values in the event are the indexed topics and the commitment.
-      expect(ev.data.toLowerCase()).to.not.include(USDC(777).toString(16).padStart(64, "0"));
+      expect(ev.data.toLowerCase()).to.not.include(
+        USDC(777).toString(16).padStart(64, "0"),
+      );
       expect(a.index).to.equal(0n);
     });
 
@@ -113,11 +214,24 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
       await time.increaseTo(f.deadline);
       await f.sod.connect(f.creator).withdraw(f.id);
 
-      const creatorClient = await hre.cofhe.createClientWithBatteries(f.creator);
-      await f.eusdc.connect(f.creator)["unshield(address,address,uint64)"](f.creator.address, f.creator.address, USDC(1_000));
+      const creatorClient = await hre.cofhe.createClientWithBatteries(
+        f.creator,
+      );
+      await f.eusdc
+        .connect(f.creator)
+        ["unshield(address,address,uint64)"](
+          f.creator.address,
+          f.creator.address,
+          USDC(1_000),
+        );
       const [claim] = await f.eusdc.getUserClaims(f.creator.address);
-      const { decryptedValue, signature } = await creatorClient.decryptForTx(claim.ctHash).withoutACP().execute();
-      await f.eusdc.connect(f.creator).claimUnshielded(claim.id, decryptedValue, signature);
+      const { decryptedValue, signature } = await creatorClient
+        .decryptForTx(claim.ctHash)
+        .withoutACP()
+        .execute();
+      await f.eusdc
+        .connect(f.creator)
+        .claimUnshielded(claim.id, decryptedValue, signature);
 
       expect(await f.usdc.balanceOf(f.creator.address)).to.equal(USDC(1_000));
       expect(await balanceOf(f, f.creator)).to.equal(0n);
@@ -164,7 +278,9 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
 
     it("can refund to a fresh address", async () => {
       const f = await loadFixture(deploy);
-      const a = await donate(f, "alice", USDC(250), { refundTo: f.freshAddr.address });
+      const a = await donate(f, "alice", USDC(250), {
+        refundTo: f.freshAddr.address,
+      });
       await f.sod.refund(f.id, a.index, a.secret, f.freshAddr.address);
       expect(await balanceOf(f, f.freshAddr)).to.equal(USDC(250));
     });
@@ -194,21 +310,43 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
   describe("access control on encrypted values", () => {
     it("lets the donor and a designated viewer decrypt the donation, not a stranger", async () => {
       const f = await loadFixture(deploy);
-      const a = await donate(f, "alice", USDC(123), { viewer: f.viewer.address });
+      const a = await donate(f, "alice", USDC(123), {
+        viewer: f.viewer.address,
+      });
       const [handle] = await f.sod.getDonation(f.id, a.index);
 
-      expect(await f.clients.alice.decryptForView(handle, FheTypes.Uint64).execute()).to.equal(USDC(123));
-      expect(await f.clients.viewer.decryptForView(handle, FheTypes.Uint64).execute()).to.equal(USDC(123));
-      const err = await f.clients.mallory.decryptForView(handle, FheTypes.Uint64).execute().then(() => null, (e: Error) => e);
+      expect(
+        await f.clients.alice.decryptForView(handle, FheTypes.Uint64).execute(),
+      ).to.equal(USDC(123));
+      expect(
+        await f.clients.viewer
+          .decryptForView(handle, FheTypes.Uint64)
+          .execute(),
+      ).to.equal(USDC(123));
+      const err = await f.clients.mallory
+        .decryptForView(handle, FheTypes.Uint64)
+        .execute()
+        .then(
+          () => null,
+          (e: Error) => e,
+        );
       expect(err?.message).to.include("NotAllowed");
     });
 
     it("does not let the creator read the total until settlement", async () => {
       const f = await loadFixture(deploy);
       await donate(f, "alice", USDC(1_000));
-      const creatorClient = await hre.cofhe.createClientWithBatteries(f.creator);
+      const creatorClient = await hre.cofhe.createClientWithBatteries(
+        f.creator,
+      );
 
-      const before = await creatorClient.decryptForView(await f.sod.totalHandle(f.id), FheTypes.Uint64).execute().then(() => null, (e: Error) => e);
+      const before = await creatorClient
+        .decryptForView(await f.sod.totalHandle(f.id), FheTypes.Uint64)
+        .execute()
+        .then(
+          () => null,
+          (e: Error) => e,
+        );
       expect(before?.message).to.include("NotAllowed");
 
       await time.increaseTo(f.deadline);
@@ -219,9 +357,11 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
         issuer: f.creator.address,
         expiration: Math.floor(Date.now() / 1000) + 30 * DAY, // default is 7 days, which we just time-travelled past
       });
-      expect(await creatorClient.decryptForView(await f.sod.totalHandle(f.id), FheTypes.Uint64).execute()).to.equal(
-        USDC(1_000)
-      );
+      expect(
+        await creatorClient
+          .decryptForView(await f.sod.totalHandle(f.id), FheTypes.Uint64)
+          .execute(),
+      ).to.equal(USDC(1_000));
     });
   });
 
@@ -235,7 +375,9 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
         .setAccount(f.bob.address)
         .execute();
       const c = commitment(f.id, newSecret(), f.bob.address);
-      await f.sod.connect(f.bob).donate(f.id, handle, proof, c, ethers.ZeroAddress);
+      await f.sod
+        .connect(f.bob)
+        .donate(f.id, handle, proof, c, ethers.ZeroAddress);
       expect(await totalOf(f)).to.equal(USDC(40));
       expect(await balanceOf(f, f.bob)).to.equal(USDC(9_960));
     });
@@ -245,9 +387,13 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
     it("rejects a wrong secret and a wrong refundTo (front-run protection)", async () => {
       const f = await loadFixture(deploy);
       const a = await donate(f, "alice", USDC(100));
-      await expect(f.sod.refund(f.id, a.index, newSecret(), a.refundTo)).to.be.revertedWithCustomError(f.sod, "CommitmentMismatch");
       await expect(
-        f.sod.connect(f.mallory).refund(f.id, a.index, a.secret, f.mallory.address)
+        f.sod.refund(f.id, a.index, newSecret(), a.refundTo),
+      ).to.be.revertedWithCustomError(f.sod, "CommitmentMismatch");
+      await expect(
+        f.sod
+          .connect(f.mallory)
+          .refund(f.id, a.index, a.secret, f.mallory.address),
       ).to.be.revertedWithCustomError(f.sod, "CommitmentMismatch");
       await f.sod.refund(f.id, a.index, a.secret, a.refundTo);
       expect(await balanceOf(f, f.alice)).to.equal(USDC(10_000));
@@ -258,12 +404,15 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
       const a = await donate(f, "alice", USDC(100));
       await donate(f, "bob", USDC(100));
       await f.sod.refund(f.id, a.index, a.secret, a.refundTo);
-      await expect(f.sod.refund(f.id, a.index, a.secret, a.refundTo)).to.be.revertedWithCustomError(f.sod, "AlreadyRefunded");
-      await expect(f.sod.refund(f.id, 99, a.secret, a.refundTo)).to.be.revertedWithCustomError(f.sod, "UnknownDonation");
-      await expect(f.sod.refund(f.id, a.index, a.secret, ethers.ZeroAddress)).to.be.revertedWithCustomError(
-        f.sod,
-        "InvalidRefundTarget"
-      );
+      await expect(
+        f.sod.refund(f.id, a.index, a.secret, a.refundTo),
+      ).to.be.revertedWithCustomError(f.sod, "AlreadyRefunded");
+      await expect(
+        f.sod.refund(f.id, 99, a.secret, a.refundTo),
+      ).to.be.revertedWithCustomError(f.sod, "UnknownDonation");
+      await expect(
+        f.sod.refund(f.id, a.index, a.secret, ethers.ZeroAddress),
+      ).to.be.revertedWithCustomError(f.sod, "InvalidRefundTarget");
     });
   });
 
@@ -271,17 +420,26 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
     it("blocks early, non-creator and double withdrawal", async () => {
       const f = await loadFixture(deploy);
       await donate(f, "alice", USDC(1_000));
-      await expect(f.sod.connect(f.creator).withdraw(f.id)).to.be.revertedWithCustomError(f.sod, "CampaignNotEnded");
+      await expect(
+        f.sod.connect(f.creator).withdraw(f.id),
+      ).to.be.revertedWithCustomError(f.sod, "CampaignNotEnded");
       await time.increaseTo(f.deadline);
-      await expect(f.sod.connect(f.mallory).withdraw(f.id)).to.be.revertedWithCustomError(f.sod, "NotCreator");
+      await expect(
+        f.sod.connect(f.mallory).withdraw(f.id),
+      ).to.be.revertedWithCustomError(f.sod, "NotCreator");
       await f.sod.connect(f.creator).withdraw(f.id);
-      await expect(f.sod.connect(f.creator).withdraw(f.id)).to.be.revertedWithCustomError(f.sod, "AlreadyWithdrawn");
+      await expect(
+        f.sod.connect(f.creator).withdraw(f.id),
+      ).to.be.revertedWithCustomError(f.sod, "AlreadyWithdrawn");
     });
 
     it("blocks donating after the deadline", async () => {
       const f = await loadFixture(deploy);
       await time.increaseTo(f.deadline);
-      await expect(donate(f, "alice", USDC(10))).to.be.revertedWithCustomError(f.sod, "CampaignEnded");
+      await expect(donate(f, "alice", USDC(10))).to.be.revertedWithCustomError(
+        f.sod,
+        "CampaignEnded",
+      );
     });
 
     it("needs the donor to have authorised Sod as operator", async () => {
@@ -297,7 +455,10 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
       const a = await donate(f, "alice", USDC(1_000));
       const b = await donate(f, "bob", USDC(10));
       await f.sod.pause();
-      await expect(donate(f, "alice", USDC(1))).to.be.revertedWithCustomError(f.sod, "EnforcedPause");
+      await expect(donate(f, "alice", USDC(1))).to.be.revertedWithCustomError(
+        f.sod,
+        "EnforcedPause",
+      );
 
       await f.sod.refund(f.id, b.index, b.secret, b.refundTo); // pre-deadline refund works while paused
       expect(await balanceOf(f, f.bob)).to.equal(USDC(10_000));
@@ -310,7 +471,9 @@ describe("SodConfidentialCrowdfund (Phase 2, FHE)", () => {
 
     it("only the owner can pause", async () => {
       const f = await loadFixture(deploy);
-      await expect(f.sod.connect(f.mallory).pause()).to.be.revertedWithCustomError(f.sod, "OwnableUnauthorizedAccount");
+      await expect(
+        f.sod.connect(f.mallory).pause(),
+      ).to.be.revertedWithCustomError(f.sod, "OwnableUnauthorizedAccount");
     });
   });
 });

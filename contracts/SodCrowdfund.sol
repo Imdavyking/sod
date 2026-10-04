@@ -6,6 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {CampaignInfo} from "./CampaignInfo.sol";
 
 /// @title SodCrowdfund
 /// @notice Trustless crowdfunding escrow. The contract, not a company, enforces the goal,
@@ -16,7 +17,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 ///
 ///         The owner can only pause NEW campaigns and donations. The owner has no path to
 ///         campaign funds, and refund/withdraw stay available while paused.
-contract SodCrowdfund is ReentrancyGuard, Pausable, Ownable {
+contract SodCrowdfund is ReentrancyGuard, Pausable, Ownable, CampaignInfo {
     using SafeERC20 for IERC20;
 
     struct Campaign {
@@ -70,11 +71,21 @@ contract SodCrowdfund is ReentrancyGuard, Pausable, Ownable {
     // ---------------------------------------------------------------------
 
     /// @notice Start a campaign. `deadline` is a unix timestamp that must be in the future.
-    function createCampaign(uint256 goal, uint64 deadline) external whenNotPaused returns (uint256 id) {
+    /// @param name        required, up to MAX_NAME_BYTES
+    /// @param description optional, up to MAX_DESCRIPTION_BYTES
+    /// @param imageURI    optional https:// or ipfs:// link, up to MAX_IMAGE_URI_BYTES
+    function createCampaign(
+        string memory name,
+        string memory description,
+        string memory imageURI,
+        uint256 goal,
+        uint64 deadline
+    ) external whenNotPaused returns (uint256 id) {
         if (goal == 0) revert InvalidGoal();
         if (deadline <= block.timestamp) revert InvalidDeadline();
 
         id = campaignCount++;
+        _setInfo(id, name, description, imageURI);
         campaigns[id] = Campaign({
             creator: msg.sender,
             goal: goal,

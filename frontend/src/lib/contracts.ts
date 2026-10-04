@@ -5,10 +5,16 @@ import deployment from "../contracts/deployment.json";
 const ZERO = "0x0000000000000000000000000000000000000000";
 export const chain = arbitrumSepolia;
 
-export const SOD_ADDRESS = (import.meta.env.VITE_SOD_ADDRESS || deployment.sod) as Address;
-export const TOKEN_ADDRESS = (import.meta.env.VITE_TOKEN_ADDRESS || deployment.token) as Address;
-export const SOD_CONF_ADDRESS = (import.meta.env.VITE_SOD_CONF_ADDRESS || deployment.sodConfidential || ZERO) as Address;
-export const ECUSDC_ADDRESS = (import.meta.env.VITE_ECUSDC_ADDRESS || deployment.confidentialToken || ZERO) as Address;
+export const SOD_ADDRESS = (import.meta.env.VITE_SOD_ADDRESS ||
+  deployment.sod) as Address;
+export const TOKEN_ADDRESS = (import.meta.env.VITE_TOKEN_ADDRESS ||
+  deployment.token) as Address;
+export const SOD_CONF_ADDRESS = (import.meta.env.VITE_SOD_CONF_ADDRESS ||
+  deployment.sodConfidential ||
+  ZERO) as Address;
+export const ECUSDC_ADDRESS = (import.meta.env.VITE_ECUSDC_ADDRESS ||
+  deployment.confidentialToken ||
+  ZERO) as Address;
 export const ZERODEV_RPC = (import.meta.env.VITE_ZERODEV_RPC || "") as string;
 export const TOKEN_DECIMALS = 6;
 
@@ -17,7 +23,7 @@ export const isConfigured =
   TOKEN_ADDRESS !== "0x0000000000000000000000000000000000000000";
 
 export const sodAbi = parseAbi([
-  "function createCampaign(uint256 goal, uint64 deadline) returns (uint256 id)",
+  "function createCampaign(string name, string description, string imageURI, uint256 goal, uint64 deadline) returns (uint256 id)",
   "function donate(uint256 id, uint256 amount, bytes32 commitment) returns (uint256 donationIndex)",
   "function refund(uint256 id, uint256 donationIndex, bytes32 secret, address refundTo)",
   "function withdraw(uint256 id)",
@@ -35,12 +41,14 @@ export const tokenAbi = parseAbi([
   "function mint(address to, uint256 amount)",
 ]);
 
-export const isPrivateConfigured = SOD_CONF_ADDRESS !== ZERO && ECUSDC_ADDRESS !== ZERO && isConfigured;
-export const isGaslessConfigured = isPrivateConfigured && ZERODEV_RPC.length > 0;
+export const isPrivateConfigured =
+  SOD_CONF_ADDRESS !== ZERO && ECUSDC_ADDRESS !== ZERO && isConfigured;
+export const isGaslessConfigured =
+  isPrivateConfigured && ZERODEV_RPC.length > 0;
 
 // Phase 2: encrypted amounts. `bytes32` stands in for the euint64 / externalEuint64 handle types.
 export const sodConfAbi = parseAbi([
-  "function createCampaign(uint64 goal, uint64 deadline) returns (uint256 id)",
+  "function createCampaign(string name, string description, string imageURI, uint64 goal, uint64 deadline) returns (uint256 id)",
   "function donate(uint256 id, bytes32 encAmount, bytes proof, bytes32 commitment, address viewer) returns (uint256 donationIndex)",
   "function refund(uint256 id, uint256 donationIndex, bytes32 secret, address refundTo)",
   "function withdraw(uint256 id)",

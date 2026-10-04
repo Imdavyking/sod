@@ -19,6 +19,13 @@ import {
 } from "./lib/contracts";
 import { connectWallet, publicClient, shortAddr } from "./lib/wallet";
 import PrivatePanel from "./PrivatePanel";
+import { CampaignFields, CampaignHeader } from "./CampaignFields";
+import {
+  EMPTY_INFO,
+  readCampaignInfo,
+  validateInfo,
+  type CampaignInfoData,
+} from "./lib/campaignInfo";
 import {
   computeCommitment,
   downloadReceipt,
@@ -31,6 +38,7 @@ import {
 
 interface Campaign {
   id: bigint;
+  info: CampaignInfoData;
   creator: Address;
   goal: bigint;
   deadline: bigint;
@@ -64,7 +72,6 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"public" | "private">("public");
 
-  
   const refresh = useCallback(async () => {
     if (!isConfigured) return;
     const count = (await publicClient.readContract({
@@ -81,8 +88,10 @@ export default function App() {
             functionName: "campaigns",
             args: [id],
           })) as readonly [Address, bigint, bigint, boolean, bigint, bigint];
+          const info = await readCampaignInfo(SOD_ADDRESS, id);
           return {
             id,
+            info,
             creator: c[0],
             goal: c[1],
             deadline: c[2],
@@ -129,12 +138,9 @@ export default function App() {
     }
   }, [account]);
 
- 
-
   useEffect(() => {
     refresh().catch((e) => setStatus({ kind: "error", text: errMsg(e) }));
   }, [refresh]);
-
 
   async function run<T>(label: string, fn: () => Promise<T>) {
     setBusy(true);
@@ -150,9 +156,6 @@ export default function App() {
       setBusy(false);
     }
   }
-
-    
-
 
   async function send(
     args: Parameters<WalletClient["writeContract"]>[0] extends infer A
@@ -186,14 +189,20 @@ export default function App() {
       } as never),
     );
 
-  const create = (goal: string, deadline: string) =>
+  const create = (info: CampaignInfoData, goal: string, deadline: string) =>
     run("Creating campaign", () => {
       const ts = BigInt(Math.floor(new Date(deadline).getTime() / 1000));
       return send({
         address: SOD_ADDRESS,
         abi: sodAbi,
         functionName: "createCampaign",
-        args: [parseUnits(goal, TOKEN_DECIMALS), ts],
+        args: [
+          info.name.trim(),
+          info.description.trim(),
+          info.imageURI.trim(),
+          parseUnits(goal, TOKEN_DECIMALS),
+          ts,
+        ],
       } as never);
     });
 
@@ -276,8 +285,6 @@ export default function App() {
         args: [c.id],
       } as never),
     );
-
-
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -374,7 +381,6 @@ export default function App() {
       {mode === "public" && account && isConfigured && (
         <CreateForm onCreate={create} busy={busy} />
       )}
-      {/*
 
       {mode === "public" && (
         <section className="mt-8 space-y-4">
@@ -398,7 +404,7 @@ export default function App() {
             />
           ))}
         </section>
-      )} */}
+      )}
     </div>
   );
 }
@@ -407,22 +413,27 @@ function CreateForm({
   onCreate,
   busy,
 }: {
-  onCreate: (goal: string, deadline: string) => void;
+  onCreate: (info: CampaignInfoData, goal: string, deadline: string) => void;
   busy: boolean;
 }) {
+  const [info, setInfo] = useState<CampaignInfoData>(EMPTY_INFO);
   const [goal, setGoal] = useState("");
   const [deadline, setDeadline] = useState("");
   const valid =
-    Number(goal) > 0 && deadline && new Date(deadline).getTime() > Date.now();
+    !validateInfo(info) &&
+    Number(goal) > 0 &&
+    deadline &&
+    new Date(deadline).getTime() > Date.now();
   return (
     <form
       className="space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (valid) onCreate(goal, deadline);
+        if (valid) onCreate(info, goal, deadline);
       }}
     >
       <h2 className="font-semibold">Start a campaign</h2>
+      <CampaignFields value={info} onChange={setInfo} />
       <div className="flex flex-wrap gap-3">
         <input
           className="input w-40 rounded-md bg-slate-800 px-3 py-2 text-sm"
@@ -489,8 +500,11 @@ function CampaignCard(props: {
 
   return (
     <article className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+      <CampaignHeader id={c.id} info={c.info} />
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="font-semibold">Campaign #{c.id.toString()}</h3>
+        <span className="text-xs text-slate-500">
+          Campaign #{c.id.toString()}
+        </span>
         <span className={`rounded-full px-2 py-0.5 text-xs ${state.cls}`}>
           {state.label}
         </span>

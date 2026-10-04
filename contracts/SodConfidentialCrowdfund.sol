@@ -6,6 +6,7 @@ import {IERC7984} from "fhenix-confidential-contracts/contracts/interfaces/IERC7
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {CampaignInfo} from "./CampaignInfo.sol";
 
 /// @title SodConfidentialCrowdfund
 /// @notice Phase 2: same rules as SodCrowdfund, but donation amounts and the running total are
@@ -24,7 +25,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 ///    campaign, and a refund can never pull funds that belong to a paid-out campaign.
 ///  - A refund after the deadline on a funded campaign pays 0 and still marks the donation refunded.
 ///  - The owner can pause new campaigns and donations only. It cannot touch funds.
-contract SodConfidentialCrowdfund is ReentrancyGuard, Pausable, Ownable {
+contract SodConfidentialCrowdfund is ReentrancyGuard, Pausable, Ownable, CampaignInfo {
     struct Campaign {
         address creator;
         uint64 goal; // public, in token units (6 decimals)
@@ -72,11 +73,21 @@ contract SodConfidentialCrowdfund is ReentrancyGuard, Pausable, Ownable {
     // Campaign lifecycle
     // ---------------------------------------------------------------------
 
-    function createCampaign(uint64 goal, uint64 deadline) external whenNotPaused returns (uint256 id) {
+    /// @param name        required, up to MAX_NAME_BYTES
+    /// @param description optional, up to MAX_DESCRIPTION_BYTES
+    /// @param imageURI    optional https:// or ipfs:// link, up to MAX_IMAGE_URI_BYTES
+    function createCampaign(
+        string memory name,
+        string memory description,
+        string memory imageURI,
+        uint64 goal,
+        uint64 deadline
+    ) external whenNotPaused returns (uint256 id) {
         if (goal == 0) revert InvalidGoal();
         if (deadline <= block.timestamp) revert InvalidDeadline();
 
         id = campaignCount++;
+        _setInfo(id, name, description, imageURI);
         Campaign storage c = _campaigns[id];
         c.creator = msg.sender;
         c.goal = goal;
